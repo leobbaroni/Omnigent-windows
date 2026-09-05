@@ -1,0 +1,9 @@
+packages:
+  - "."
+
+# pnpm 10+ refuses to run dependency build scripts unless allow-listed.
+# electron's postinstall downloads the Chromium binary; electron-winstaller
+# (pulled in by electron-builder) ships a native helper.
+allowBuilds:
+  electron: true
+  electron-winstaller: true

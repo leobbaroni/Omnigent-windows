@@ -1,0 +1,49 @@
+{
+  "repo": "https://github.com/omnigent-ai/omnigent",
+  "commit": "5d323ad",
+  "branch": "main",
+  "omnigentVersion": "0.13.0.dev0",
+  "shellVersion": "0.12.0",
+  "testedRelease": "0.12.0",
+  "syncedAt": "2026-09-05",
+  "localPath": "../omnigent-upstream",
+  "sourceDir": "web/electron",
+  "targetDir": "app",
+  "protected": [
+    "package.json",
+    "README.md",
+    "dev-app-update.yml",
+    "src/win/",
+    "setup/win-bootstrap.js",
+    "settings-win/",
+    "icons/badges/",
+    "e2e/win_smoke.e2e.js",
+    "test/win_",
+    "UPSTREAM.md"
+  ],
+  "hooked": [
+    "src/main.js",
+    "src/omnigent_cli.js",
+    "src/server_manager.js",
+    "src/preload.js",
+    "setup/index.html",
+    "test/desktop_updater.test.js",
+    "test/omnigent_cli.test.js"
+  ],
+  "extras": [
+    { "from": "web/platform-assets", "to": "app/platform-assets" }
+  ],
+  "exclude": [
+    "node_modules/",
+    "dist/",
+    "overlay/",
+    "server-selector-v2/",
+    "dmg/",
+    "signing/",
+    "build/entitlements.mac.plist",
+    "build/entitlements.mac.inherit.plist",
+    "icons/Assets.car",
+    "icons/icon.icns",
+    ".gitignore"
+  ]
+}

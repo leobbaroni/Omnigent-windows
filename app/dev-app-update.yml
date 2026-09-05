@@ -1,0 +1,7 @@
+# Development update feed for `electron .` runs (packaged builds read the
+# `publish` block in package.json instead). Points at this project's GitHub
+# Releases so a dev build checks the same feed the installer will use.
+provider: github
+owner: TugaPlayz
+repo: Omnigent-windows
+updaterCacheDirName: omnigent-desktop-windows-updater-dev
