@@ -56,6 +56,16 @@ shell — see `docs/adr/0001-electron-vendored-upstream-shell.md`.
   `getCliStatus`, `resetCliPath`, `updates.*` (`getConfig/getStatus/check/
   download/installNow/setConfig/onStatus/getOverlayHeight/onOverlayHeight`),
   `setColorScheme`, and the `browser*` embedded-browser-pane family.
+- Additional SPA contract used by the Windows folder-picker enhancement
+  (`app/src/win/folder_picker_preload.js`, inlined in `preload.js`): the test
+  ids `workspace-picker` / `workspace-picker-home` / `workspace-picker-path-input`
+  (`web/src/shell/WorkspacePicker.tsx`) and `workspace-browse-toggle` /
+  `workspace-path-input` (`WorkspacePathField.tsx`). If they change, the
+  button simply does not appear.
+- Seamless chrome CSS (`app/src/win/chrome.js`) relies on the SPA classes
+  `.app-shell`, `.chat-header`, `aside[aria-label="Workspace"]`,
+  `.workspace-tab-strip`, `.settings-sidebar-header` (`web/src/index.css`,
+  `AppShell.tsx`, `ChatHeader.tsx`, `WorkspacePanel.tsx`).
 - **The Windows shell must not change this contract.** Windows-only features
   are added as additional optional fields/methods, never by altering existing
   ones (an older or newer SPA must keep working).
@@ -176,6 +186,8 @@ dictation, color-scheme sync, `omnigent://host/c/<session>` deep links
 From README "Windows (native)" and `_platform.py`:
 
 - Native tmux/PTY terminal wrappers (`omnigent claude/codex/cursor`) are unavailable, so **shell/terminal panes for a native-Windows host are not available**; use a WSL or remote host.
+- **Verified 2026-09-05 against 0.12.0:** the SPA's default "Claude Code" harness on a native Windows host is the *native terminal* harness (`claude-native-ui`); a session started with it fails at launch with `Native terminal harnesses (tmux/PTY) are not supported on Windows` (runner log, `omnigent/runner/native/orchestration.py`). SDK harnesses (`claude-sdk`, `codex`, `cursor`, `copilot`) are reported ready by the host and are the working choice on native Windows; the WSL backend gives the full native-harness experience. The shell surfaces this in the bootstrap panel and README; it cannot change the SPA's default.
+- **Test-environment note:** a host daemon started from inside a Claude Code / Codex terminal inherits nested-session env vars (`CLAUDECODE`, `CLAUDE_CODE_CHILD_SESSION`, …) and then reports native Claude as `needs-auth` (`claude -p /model` exits 0xC0000142). The shell strips these before every CLI spawn (`cli_windows.js::cliEnv`).
 - No `bwrap`/`seatbelt` sandboxing and no L7 egress proxy: Job Objects contain the process tree but do not isolate filesystem or network.
 - `--follow` log tailing is not supported on Windows (`cli.py`).
 - Git symlink stubs on no-symlink checkouts are handled by `resolve_repo_symlink`.
@@ -234,6 +246,9 @@ Legend: ✅ supported · ⚠️ partial / conditional · ❌ unsupported · ⏳ 
 | Multiple agents | ✅ | ✅ | ✅⏳ | Omnigent | |
 | Sub-agents | ✅ | ✅ | ✅⏳ | Omnigent | |
 | Shell/terminal | ✅ (POSIX hosts) | ✅ | ⚠️ remote/WSL hosts only; native-Windows host ❌ (Omnigent limitation, §12) | Omnigent | shell surfaces the limitation |
+| Native terminal harnesses (Claude Code, Codex, Cursor terminal mode) | ✅ (POSIX hosts) | ✅ | ❌ on a native-Windows host (Omnigent, §12); ✅ via WSL/remote host | Omnigent | SDK harnesses work natively |
+| Working-directory chooser | ✅ (server-side browser) | ✅ | ✅ + native Windows folder dialog (new) | Shell (preload enhancement) | contract: SPA test ids in §3 |
+| Seamless window (no native title/menu bar) | n/a | ✅ hiddenInset | ✅ Window Controls Overlay + injected drag CSS (new) | Shell (Windows) | menu via Alt |
 | Todos/plans (agent) | ✅ | ✅ | ✅⏳ | Omnigent | |
 | Scheduled tasks | ✅ | ✅ | ✅⏳ | Omnigent (`server/scheduled`) | |
 | Skills | ✅ | ✅ | ✅⏳ | Omnigent | |

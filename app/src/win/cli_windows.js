@@ -35,8 +35,22 @@ const INSTALL_COMMAND_WINDOWS = "uv tool install --python 3.12 omnigent";
  */
 function cliEnv(base = process.env) {
   if (!IS_WIN) return base;
-  return { ...base, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" };
+  const env = { ...base, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" };
+  // Nested-session markers a Claude Code / Codex terminal exports into every
+  // child. If the shell was launched from such a terminal they reach the host
+  // daemon and the harness probes, which then report Claude Code as
+  // "needs-auth" (observed: `claude -p /model` exits 0xC0000142). They mean
+  // nothing to a desktop app, so drop them before any CLI spawn.
+  for (const key of Object.keys(env)) {
+    if (NESTED_SESSION_ENV.has(key) || /^CLAUDE_CODE_(CHILD_SESSION|SESSION_ID|MESSAGING_|ENTRYPOINT|HOST_SESSION_ID|EXECPATH)/.test(key)) {
+      delete env[key];
+    }
+  }
+  return env;
 }
+
+/** Exact env names that only exist inside a running Claude Code session. */
+const NESTED_SESSION_ENV = new Set(["CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT"]);
 
 /**
  * Extra `child_process` options for any CLI spawn. A no-op off Windows so the

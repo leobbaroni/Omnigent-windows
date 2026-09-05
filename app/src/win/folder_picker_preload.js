@@ -99,7 +99,11 @@ function installFolderPicker({ ipcRenderer, doc = globalThis.document, platform 
         btn.disabled = false;
       }
     });
-    anchor.insertAdjacentElement("afterend", btn);
+    // Tooltip-wrapped icon buttons sit alone inside a wrapper; place ours
+    // beside the wrapper so it lands in the toolbar row, not under the icon.
+    const wrapper = anchor.parentElement;
+    const target = wrapper && wrapper.children.length === 1 && wrapper.parentElement ? wrapper : anchor;
+    target.insertAdjacentElement("afterend", btn);
   }
 
   const scan = () => {

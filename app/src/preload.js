@@ -21,7 +21,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 // to built-in modules — `require("./win/…")` is unavailable here. Keep in sync
 // with src/win/folder_picker_preload.js, the unit-tested reference copy.
 (() => {
-  if (process.platform !== "win32" || typeof document === "undefined") return;
+  if (typeof process === "undefined" || process.platform !== "win32" || typeof document === "undefined") return;
   const IPC_CHANNEL = "omnigent:win-pick-directory";
   const ICON_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -64,7 +64,11 @@ const { contextBridge, ipcRenderer } = require("electron");
         btn.disabled = false;
       }
     });
-    anchor.insertAdjacentElement("afterend", btn);
+    // Tooltip-wrapped icon buttons sit alone inside a wrapper; place ours
+    // beside the wrapper so it lands in the toolbar row, not under the icon.
+    const wrapper = anchor.parentElement;
+    const target = wrapper && wrapper.children.length === 1 && wrapper.parentElement ? wrapper : anchor;
+    target.insertAdjacentElement("afterend", btn);
   };
   const scan = () => {
     for (const el of document.querySelectorAll('[data-testid="workspace-browse-toggle"]')) {

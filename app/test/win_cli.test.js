@@ -57,6 +57,18 @@ describe("win cli: spawnOptions / cliEnv", () => {
   });
 });
 
+describe("win cli: cliEnv strips nested-session markers", { skip: !win.IS_WIN }, () => {
+  it("drops CLAUDECODE / CLAUDE_CODE_CHILD_SESSION but keeps credentials and PATH", () => {
+    const env = win.cliEnv({ PATH: "p", CLAUDECODE: "1", CLAUDE_CODE_CHILD_SESSION: "x", CLAUDE_CODE_SESSION_ID: "s", CLAUDE_CODE_OAUTH_TOKEN: "keep", ANTHROPIC_API_KEY: "keep" });
+    assert.equal(env.PATH, "p");
+    assert.equal(env.CLAUDECODE, undefined);
+    assert.equal(env.CLAUDE_CODE_CHILD_SESSION, undefined);
+    assert.equal(env.CLAUDE_CODE_SESSION_ID, undefined);
+    assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, "keep");
+    assert.equal(env.ANTHROPIC_API_KEY, "keep");
+  });
+});
+
 describe("win cli: killTree", () => {
   it("runs taskkill /T /F for a pid and resolves true on success", async () => {
     const calls = [];
