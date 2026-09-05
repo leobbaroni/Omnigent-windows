@@ -146,8 +146,9 @@ unfocused. Toggle in Windows Settings.
 
 | Symptom | What to do |
 |---|---|
+| Updates: "No release published yet" / HTTP 404 | The installed build points at a repository without a Release (early builds). Install the latest from [Releases](https://github.com/leobbaroni/Omnigent-windows/releases/latest) once; it updates from there. |
 | "Host is offline" | Tray ▸ *Reconnect This Machine as Host* (or turn on *Host this machine automatically* in Windows Settings). |
-| "CLI not found" but it's installed | Click Re-detect. Native: `%USERPROFILE%\.local\bin\omnigent.exe`; WSL: Settings ▸ Local mode ▸ WSL + distro. |
+| "Not found" on Omnigent's Local CLI page / "CLI not found" on Connect | Click Re-detect. The page shows the active backend (WSL distro CLI when Local mode is WSL). Native: `%USERPROFILE%\.local\bin\omnigent.exe`; WSL: Settings ▸ Local mode ▸ WSL + distro. |
 | Session fails with "Native terminal harnesses are not supported on Windows" | You're on a native Windows host with Claude Code/Codex. Switch to WSL (Settings) or pick a custom SDK agent. |
 | Claude Code says it isn't configured in the distro | Setup panel ▸ *Sign in to Claude Code inside Ubuntu* (or `wsl -d Ubuntu --shell-type login -- claude`). |
 | Start locally fails | Boot log on the Connect page; `~/.omnigent/logs/server/` (Windows or inside the distro). |

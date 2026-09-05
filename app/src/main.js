@@ -1130,7 +1130,7 @@ async function clearCliPath() {
   const settings = loadSettings();
   delete settings.omnigent_path;
   saveSettings(settings);
-  return omnigentCli.getCliStatus(null);
+  return currentCliStatus(); // [win] backend-aware
 }
 
 /** Maximum number of entries kept in the persisted recent-servers list. */
@@ -3148,8 +3148,9 @@ function registerIpc() {
       console.warn("[omnigent] cli-get-status from untrusted sender dropped");
       return null;
     }
+    // [win] Reports the active backend (WSL distro CLI when WSL mode is on).
     return {
-      ...(await omnigentCli.getCliStatus(loadSettings().omnigent_path)),
+      ...(await currentCliStatus()),
       customizationDisabled: databricksInternalFeaturesEnabled(),
     };
   });

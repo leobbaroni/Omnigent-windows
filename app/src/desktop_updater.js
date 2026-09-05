@@ -98,6 +98,26 @@ function isUpdateSecurityError(message) {
  *   readonly installPending: boolean,
  * }}
  */
+/**
+ * [win] Turn electron-updater's raw HTTP errors into something a user can act
+ * on. A 404 on the GitHub feed means the repository has no published release
+ * (or the installed build points at a repository that no longer exists), and
+ * the raw message otherwise dumps response headers and cookies into the UI.
+ *
+ * @param {string} msg
+ * @returns {string}
+ */
+function friendlyUpdateError(msg) {
+  const m = /HttpError:\s*(\d{3})\b[\s\S]*?url:\s*(\S+)/.exec(msg);
+  if (!m) return msg;
+  const [, code, url] = m;
+  const repo = /github\.com\/([^/\s]+\/[^/\s]+)/.exec(url)?.[1] ?? url;
+  if (code === "404") {
+    return `No release published yet at ${repo}. Updates start working once a GitHub Release with latest.yml exists (or install the latest build from https://github.com/${repo}/releases).`;
+  }
+  return `Update feed returned HTTP ${code} for ${repo}.`;
+}
+
 function createDesktopUpdater({
   app,
   BrowserWindow,
@@ -235,7 +255,7 @@ function createDesktopUpdater({
       broadcast({ state: "downloaded", currentVersion: getCurrentVersion(), info }),
     );
     autoUpdater.on("error", (err) => {
-      const msg = String(err?.message ?? err);
+      const msg = friendlyUpdateError(String(err?.message ?? err)); // [win]
       const isSecurity = isUpdateSecurityError(msg);
       const wasManualCheck = manualCheckInFlight;
       manualCheckInFlight = false;
@@ -267,7 +287,7 @@ function createDesktopUpdater({
         return undefined;
       })
       .catch((err) => {
-        const msg = String(err?.message ?? err);
+        const msg = friendlyUpdateError(String(err?.message ?? err)); // [win]
         if (manualCheckInFlight) {
           manualCheckInFlight = false;
           broadcast({
@@ -278,7 +298,7 @@ function createDesktopUpdater({
           broadcast(statusBeforeCheck ?? { state: "idle" });
         }
         statusBeforeCheck = null;
-        throw err;
+        throw new Error(msg);
       });
   }
 
@@ -483,4 +503,5 @@ module.exports = {
   isUpdateSecurityError,
   UPDATE_MODES,
   UPDATES_UNAVAILABLE_IN_DEV,
+  friendlyUpdateError, // [win]
 };

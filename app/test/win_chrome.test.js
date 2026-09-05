@@ -96,3 +96,32 @@ describe("win folder picker preload", () => {
     assert.deepEqual(events, ["input", "change"]);
   });
 });
+
+it("[win] overlay blends with the sampled page background", async () => {
+
+  assert.equal(chrome.cssColorToHex("rgb(30, 26, 43)"), "#1e1a2b");
+  assert.equal(chrome.cssColorToHex("rgba(30, 26, 43, 0.9)"), "#1e1a2b");
+  assert.equal(chrome.cssColorToHex("rgba(0, 0, 0, 0)"), null);
+  assert.equal(chrome.cssColorToHex("transparent"), null);
+  assert.equal(chrome.cssColorToHex("#ABCDEF"), "#abcdef");
+  assert.equal(chrome.cssColorToHex("#abcdef00"), null);
+  assert.equal(chrome.symbolColorFor("#1e1a2b"), "#e6e6ea");
+  assert.equal(chrome.symbolColorFor("#fafafa"), "#1b1b1f");
+
+  const calls = [];
+  const win = {
+    isDestroyed: () => false,
+    setTitleBarOverlay: (o) => calls.push(o),
+    webContents: { executeJavaScript: async () => "rgb(30, 26, 43)" },
+  };
+  await chrome.blendOverlay(win, true);
+  await chrome.blendOverlay(win, true); // unchanged → no second call
+  assert.deepEqual(calls, [{ color: "#1e1a2b", symbolColor: "#e6e6ea", height: chrome.OVERLAY_HEIGHT }]);
+
+  const fallback = [];
+  await chrome.blendOverlay(
+    { isDestroyed: () => false, setTitleBarOverlay: (o) => fallback.push(o), webContents: { executeJavaScript: async () => null } },
+    true,
+  );
+  assert.equal(fallback[0].color, chrome.overlayColors(true).color);
+});
