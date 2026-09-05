@@ -25,10 +25,18 @@ const DEFAULTS = { maxBytes: 2 * 1024 * 1024, keep: 5, fileName: "omnigent-deskt
  * @returns {string}
  */
 function redact(line) {
-  return String(line)
-    .replace(/(Bearer\s+)[A-Za-z0-9._\-]+/gi, "$1[redacted]")
-    .replace(/((?:token|password|passwd|secret|api[_-]?key|cookie)\s*[=:]\s*)[^\s&"',;]+/gi, "$1[redacted]")
-    .replace(/(ticket=)[^\s&"']+/gi, "$1[redacted]");
+  return (
+    String(line)
+      .replace(/(Bearer\s+)[A-Za-z0-9._\-]+/gi, "$1[redacted]")
+      .replace(/((?:token|password|passwd|secret|api[_-]?key|cookie)\s*[=:]\s*)[^\s&"',;]+/gi, "$1[redacted]")
+      .replace(/(ticket=)[^\s&"']+/gi, "$1[redacted]")
+      // Cookie headers dumped by HTTP error objects (e.g. the updater's 404
+      // report): `name=value; path=/…` → keep the name, drop the value.
+      .replace(/("?set-cookie"?\s*[:=]\s*\[?\s*"?)([^"\]]+)/gi, (m, prefix) => `${prefix}[redacted]`)
+      .replace(/\b([A-Za-z0-9_\-]*(?:sess|session|csrf|auth|_octo|logged_in)[A-Za-z0-9_\-]*=)[^;\s"']+/gi, "$1[redacted]")
+      // Any long opaque token-looking value after `=` (40+ url-safe chars).
+      .replace(/(=)[A-Za-z0-9%._\-]{40,}/g, "$1[redacted]")
+  );
 }
 
 /**

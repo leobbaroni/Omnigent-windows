@@ -490,6 +490,8 @@ module.exports = {
   stopOwnedLocalServer,
   shutdown,
   onChange,
+  // [win] Read-only ownership view for the tray's status line / heartbeat.
+  ownedLocalServer: () => ownedLocalServer,
   // Exposed for tests / introspection.
   _hostChildren: hostChildren,
   ownsLiveHost,

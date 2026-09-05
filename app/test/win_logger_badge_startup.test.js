@@ -42,6 +42,16 @@ describe("win logger", () => {
 
   it("redact leaves ordinary text alone", () => {
     assert.equal(redact("server status running at http://127.0.0.1:6767"), "server status running at http://127.0.0.1:6767");
+    assert.equal(redact("[win] badge overlay 3 -> 1 window(s)"), "[win] badge overlay 3 -> 1 window(s)");
+  });
+
+  it("redact scrubs cookie headers and long opaque tokens", () => {
+    const line = '"set-cookie": ["_gh_sess=fnX5dz07iQG9RJtCJlHKFdUBkE7QnoyQIFxI88cicJ1R5i24RSJnC3Uhh; path=/; HttpOnly", "logged_in=no; path=/"]';
+    const out = redact(line);
+    assert.ok(!out.includes("fnX5dz07"), out);
+    assert.ok(!out.includes("logged_in=no"), out);
+    assert.equal(redact("_octo=GH1.1.1411486345.1788575608; expires=x"), "_octo=[redacted]; expires=x");
+    assert.equal(redact("id=abc"), "id=abc");
   });
 });
 

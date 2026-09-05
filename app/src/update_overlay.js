@@ -186,6 +186,13 @@ function createUpdateOverlay({
       if (!overlay.isDestroyed()) overlay.destroy();
     };
     parent.on("closed", onParentClosed);
+    // [win] On Windows, quitting with this transparent child window still alive
+    // wedges Electron's shutdown: the parent's `close` fires, the overlay's
+    // `close` fires, but neither window reaches `closed`, the JS loop stops
+    // ticking and the process never exits (reproduced on the untouched upstream
+    // shell; see COMPAT.md §12). Destroying the overlay as soon as the parent
+    // STARTS closing lets the quit complete in ~250 ms.
+    if (platform === "win32") parent.on("close", onParentClosed);
     overlay.on("closed", () => {
       notifyParentHeight(parent, 0);
       overlays.delete(parent);
@@ -194,6 +201,7 @@ function createUpdateOverlay({
         parent.removeListener("resize", reposition);
         parent.removeListener("move", reposition);
         parent.removeListener("closed", onParentClosed);
+        parent.removeListener("close", onParentClosed);
       }
     });
     return overlay;

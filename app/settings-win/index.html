@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src data:;" />
+    <title>Omnigent Settings</title>
+    <style>
+      :root { color-scheme: light dark; --fg: #1b1b1f; --muted: #5d5d66; --bg: #f6f6f7; --card: #fff; --line: #e2e2e6; --accent: #16181d; --ok: #2e9e4f; --warn: #b3261e; }
+      @media (prefers-color-scheme: dark) { :root { --fg: #ececf1; --muted: #a3a3ad; --bg: #141416; --card: #1d1d21; --line: #34343a; --accent: #ececf1; --ok: #5ec27a; --warn: #f28b82; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 13px/1.45 system-ui, "Segoe UI", sans-serif; color: var(--fg); background: var(--bg); }
+      header { padding: 16px 20px 8px; }
+      header h1 { margin: 0; font-size: 18px; }
+      header p { margin: 4px 0 0; color: var(--muted); }
+      main { padding: 0 20px 24px; }
+      section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
+      h2 { font-size: 14px; margin: 0 0 8px; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); }
+      .row:first-of-type { border-top: 0; }
+      .row .l { flex: 1; }
+      .row .l small { display: block; color: var(--muted); }
+      select, input[type="text"] { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); min-width: 200px; }
+      button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+      button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+      button:disabled { opacity: .5; cursor: default; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+      code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+      .kv { display: grid; grid-template-columns: 160px 1fr; gap: 4px 12px; }
+      .kv div:nth-child(odd) { color: var(--muted); }
+      .status { font-size: 12px; margin-top: 8px; min-height: 16px; }
+      .ok { color: var(--ok); } .warn { color: var(--warn); }
+      .switch { width: 40px; height: 22px; appearance: none; background: #bbb; border-radius: 11px; position: relative; cursor: pointer; flex: none; }
+      .switch:checked { background: var(--ok); }
+      .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+      .switch:checked::after { left: 21px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Omnigent Settings</h1>
+      <p>Windows desktop settings. Everything Omnigent itself does (agents, models, tools, policies) is configured inside Omnigent.</p>
+    </header>
+    <main>
+      <section id="connection">
+        <h2>Connection</h2>
+        <div class="row"><div class="l">Default server<small id="server-url">—</small></div><button data-action="change-server">Change Server…</button></div>
+        <div class="row"><div class="l">Local mode<small>Native runs the Windows Omnigent CLI. WSL runs Omnigent inside a Linux distro (terminals and sandboxing available; install Omnigent inside the distro first).</small></div>
+          <select id="local-mode"><option value="native">Native Windows</option><option value="wsl">WSL distro</option></select></div>
+        <div class="row" id="distro-row"><div class="l">WSL distro</div><select id="wsl-distro"></select></div>
+        <div class="row"><div class="l">Start the local server when Omnigent launches</div><input class="switch" type="checkbox" id="auto-start" /></div>
+        <div class="row"><div class="l">Local server<small id="server-status">—</small></div>
+          <span class="actions"><button data-action="start-server">Start</button><button data-action="stop-server">Stop</button><button data-action="restart-server">Restart</button></span></div>
+      </section>
+
+      <section id="application">
+        <h2>Application</h2>
+        <div class="row"><div class="l">Close to tray<small>Closing the last window keeps Omnigent (and running agents) in the tray. Quit from the tray or Server ▸ Quit Omnigent.</small></div><input class="switch" type="checkbox" id="close-to-tray" /></div>
+        <div class="row"><div class="l">Start with Windows<small id="start-note">Launches hidden in the tray at sign-in. Packaged builds only.</small></div><input class="switch" type="checkbox" id="start-with-windows" /></div>
+        <div class="row"><div class="l">Desktop notifications<small>Agent finished, needs input, runner disconnected.</small></div><input class="switch" type="checkbox" id="notifications" /></div>
+        <div class="row"><div class="l">App updates<small>How Omnigent for Windows checks for its own updates.</small></div>
+          <select id="update-mode"><option value="default">Check automatically</option><option value="start">Check at launch only</option><option value="manual">Manual</option><option value="none">Never</option></select></div>
+        <div class="row"><div class="l">Install app updates on quit</div><input class="switch" type="checkbox" id="update-auto-install" /></div>
+        <div class="actions"><button data-action="check-app-updates">Check for App Updates…</button></div>
+      </section>
+
+      <section id="diagnostics">
+        <h2>Diagnostics</h2>
+        <div class="kv" id="kv"></div>
+        <div class="actions">
+          <button data-action="check-omnigent-updates">Check for Omnigent Updates…</button>
+          <button data-action="upgrade-omnigent">Update Omnigent…</button>
+          <button data-action="open-logs">Open Log Folder</button>
+          <button data-action="show-settings-file">Show settings.json</button>
+          <button data-action="copy-diagnostics">Copy Diagnostics</button>
+          <button id="refresh">Refresh</button>
+        </div>
+        <div class="status" id="status"></div>
+      </section>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

@@ -26,6 +26,7 @@
     "src/omnigent_cli.js",
     "src/server_manager.js",
     "src/preload.js",
+    "src/update_overlay.js",
     "setup/index.html",
     "test/desktop_updater.test.js",
     "test/omnigent_cli.test.js"

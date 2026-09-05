@@ -28,6 +28,7 @@ const {
   session,
   shell,
   systemPreferences,
+  Tray, // [win]
 } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const { createDesktopUpdater } = require("./desktop_updater");
@@ -67,6 +68,28 @@ const isaac = require("./isaac");
 // [win] Windows-owned modules (no-ops off Windows).
 const winBootstrap = require("./win/bootstrap");
 const winCompat = require("./win/compat");
+const { createWindowsIntegration } = require("./win/integration");
+const winWsl = require("./win/wsl");
+const { createSettingsWindow } = require("./win/settings_window");
+/** [win] Shell-owned Windows settings window; null off Windows. */
+let winSettings = null;
+// [win] File logging from the very start (userData is known before ready):
+// %APPDATA%\Omnigent\logs\omnigent-desktop.log, rotated, secrets redacted.
+const winLog =
+  process.platform === "win32"
+    ? (() => {
+        const { createLogger } = require("./win/logger");
+        const logger = createLogger({ dir: path.join(app.getPath("userData"), "logs") });
+        logger.captureConsole();
+        logger.captureProcessErrors();
+        logger.info(
+          `[win] Omnigent for Windows ${app.getVersion()} starting (electron ${process.versions.electron}, ${process.arch}, packaged=${app.isPackaged})`,
+        );
+        return logger;
+      })()
+    : null;
+/** [win] Tray / close-to-tray / badge integration; null off Windows until ready. */
+let winIntegration = null;
 const { createArcaConnectFlow } = require("./arca_connect_window");
 const { registerSessionExpiryReload } = require("./session-expiry");
 const { decideWindowOpen, stripCrossOriginOpenerHeaders, WEB_SCHEMES } = require("./popupPolicy");
@@ -651,6 +674,8 @@ function updateBadge() {
   for (const count of perOrigin.values()) total += count;
   const ok = app.setBadgeCount(total);
   console.log(`[omnigent] setBadgeCount(${total}) -> ${ok}`);
+  // [win] Windows has no app badge; paint a taskbar overlay icon instead.
+  if (winIntegration) winIntegration.applyBadge(total);
 }
 
 /**
@@ -976,6 +1001,12 @@ function saveSettings(settings) {
 let cachedCli = null;
 
 function resolvedCliPath() {
+  // [win] WSL backend: every CLI call goes through `wsl.exe -d <distro> --
+  // omnigent …` (a command object cliCommandParts understands).
+  if (process.platform === "win32") {
+    const wslCommand = winWsl.activeCliCommand(loadSettings());
+    if (wslCommand) return wslCommand;
+  }
   const configured = loadSettings().omnigent_path ?? null;
   if (
     cachedCli &&
@@ -988,6 +1019,20 @@ function resolvedCliPath() {
   const resolved = omnigentCli.resolveCliPath(configured);
   cachedCli = { configuredPath: configured, path: resolved ? resolved.path : null };
   return cachedCli.path;
+}
+
+/**
+ * [win] CLI status for the active backend: the WSL distro's CLI when WSL mode
+ * is on, else the native (configured / PATH / candidate) binary.
+ *
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function currentCliStatus() {
+  if (process.platform === "win32") {
+    const wslCommand = winWsl.activeCliCommand(loadSettings());
+    if (wslCommand) return winWsl.cliStatus(wslCommand, omnigentCli.runCli);
+  }
+  return omnigentCli.getCliStatus(loadSettings().omnigent_path);
 }
 
 /**
@@ -1433,6 +1478,8 @@ function createWindow(targetUrl, opts = {}) {
     // Per-conversation embedded-browser view registry for this window.
     browserRegistry: createBrowserRegistryForWindow(win),
   });
+  // [win] close-to-tray, badge overlay, hidden login launch.
+  if (winIntegration) winIntegration.onWindowCreated(win);
   registerWorkspaceRootBounce(win.webContents, () => pinnedOrigin(win));
   // Show the return banner when the window navigates away from its server
   // (e.g. SSO) and stays away. The watch's on-away URL is the last committed
@@ -2173,6 +2220,23 @@ function buildMenu() {
     // `role: "close"` carries the standard CmdOrCtrl+W shortcut and closes
     // the focused window. There is no File menu, so Close lives under Server.
     { role: "close", label: "Close Window" },
+    // [win] Close hides to the tray, so Quit needs its own, explicit item.
+    ...(process.platform === "win32"
+      ? [
+          {
+            id: "win_settings",
+            label: "Windows Settings…",
+            accelerator: "Ctrl+,",
+            click: () => winSettings?.open(activeWindow()),
+          },
+          {
+            id: "quit_app",
+            label: "Quit Omnigent",
+            accelerator: "Ctrl+Q",
+            click: () => (winIntegration ? winIntegration.requestQuit() : app.quit()),
+          },
+        ]
+      : []),
   ];
 
   // Our custom Server menu, inserted right after the leftmost menu — index 1
@@ -2790,6 +2854,8 @@ function registerIpc() {
       return false;
     }
     if (!Notification.isSupported()) return false;
+    // [win] Respect the user's notifications toggle (settings.json).
+    if (winIntegration && !winIntegration.allowNotification()) return false;
     // With windows pinned to more than one server (multi-server),
     // prefix the firing server's hostname so alerts are attributable.
     let title = String(params?.title ?? "");
@@ -2819,6 +2885,7 @@ function registerIpc() {
     notification.on("click", () => {
       const win = BrowserWindow.fromWebContents(event.sender) ?? activeWindow();
       if (win) {
+        if (!win.isVisible()) win.show(); // [win] hidden in the tray
         if (win.isMinimized()) win.restore();
         win.focus();
       }
@@ -2864,7 +2931,7 @@ function registerIpc() {
       throw new Error("get-cli-status is only available to the setup page");
     }
     const status = {
-      ...(await omnigentCli.getCliStatus(loadSettings().omnigent_path)),
+      ...(await currentCliStatus()),
       customizationDisabled: databricksInternalFeaturesEnabled(),
     };
     // [win] One-time (per version) compatibility notice; never blocks the page.
@@ -3517,6 +3584,7 @@ if (!gotLock) {
     if (!handledUrl) {
       const win = activeWindow();
       if (win) {
+        if (!win.isVisible()) win.show(); // [win] hidden in the tray
         if (win.isMinimized()) win.restore();
         win.focus();
       }
@@ -3548,6 +3616,62 @@ if (!gotLock) {
     // instant (primes the in-memory cache in resolvedCliPath); also lets the
     // setup page / Local CLI settings pre-fill the resolved path immediately.
     resolvedCliPath();
+    // [win] Tray, close-to-tray, taskbar badge overlay, start-with-Windows.
+    // Created before the first window so onWindowCreated applies to it.
+    if (process.platform === "win32") {
+      winIntegration = createWindowsIntegration({
+        app,
+        BrowserWindow,
+        Tray,
+        Menu,
+        nativeImage,
+        dialog,
+        shell,
+        Notification,
+        loadSettings,
+        saveSettings,
+        activeWindow,
+        createWindow: (url) => createWindow(url),
+        shellWindows: () => [...windows.keys()].filter((w) => !w.isDestroyed()),
+        loadServerUrl: (win, url) => void loadServerUrl(win, url),
+        serverManager,
+        omnigentCli,
+        resolvedCliPath,
+        changeServer,
+        checkForUpdates: () => {
+          aboutWindow.open(activeWindow());
+          void updater.checkForUpdates({ manual: true }).catch(() => {});
+        },
+        openSettings: () => winSettings?.open(activeWindow()),
+        iconPath: path.join(__dirname, "..", "icons", "icon.ico"),
+        logDir: winLog ? winLog.dir : app.getPath("logs"),
+        log: winLog ?? console,
+        argv: process.argv,
+      });
+      winIntegration.createTray();
+      winIntegration.syncStartWithWindows();
+      winSettings = createSettingsWindow({
+        BrowserWindow,
+        ipcMain,
+        shell,
+        clipboard,
+        app,
+        loadSettings,
+        saveSettings,
+        integration: winIntegration,
+        getCliStatus: currentCliStatus,
+        updater,
+        changeServer,
+        checkForUpdates: () => {
+          aboutWindow.open(activeWindow());
+          void updater.checkForUpdates({ manual: true }).catch(() => {});
+        },
+        logDir: winLog ? winLog.dir : app.getPath("logs"),
+        settingsPath: settingsPath(),
+        log: winLog ?? console,
+      });
+      winSettings.registerIpc();
+    }
     // Register the omnigent:// scheme so OS clicks route to this app. The
     // build manifest (package.json `build.protocols`) is the reliable
     // per-install registration that survives reinstalls; this lets dev
@@ -3564,6 +3688,11 @@ if (!gotLock) {
       createWindow();
     }
     updater.init();
+    // [win] Optional: bring the managed local server up at launch. Reuses a
+    // healthy one; navigates the window only if it is not already there.
+    if (winIntegration && loadSettings().win_auto_start_local === true) {
+      void winIntegration.startLocalServer().catch((err) => console.warn("[win] auto-start failed:", err));
+    }
 
     app.on("activate", () => {
       // macOS: re-create the window when the dock icon is clicked and none
@@ -3575,6 +3704,9 @@ if (!gotLock) {
   });
 
   app.on("window-all-closed", () => {
+    // [win] With close-to-tray on, closing the last window keeps the app
+    // (and any agent sessions it hosts) running in the tray; Quit is explicit.
+    if (winIntegration && !winIntegration.shouldQuitOnAllClosed()) return;
     // macOS apps typically stay alive until Cmd-Q.
     if (process.platform !== "darwin") app.quit();
   });
@@ -3607,6 +3739,8 @@ if (!gotLock) {
   };
   app.on("quit", clearQuitForceExitTimer);
   app.on("before-quit", (event) => {
+    // [win] Let close-to-tray window handlers know this is a real quit.
+    if (winIntegration) winIntegration.markQuitting();
     if (quitCleanupDone) return;
     // A second quit (e.g. Cmd-Q again during the SIGKILL grace window) must not
     // re-enter shutdown() concurrently — just keep deferring until the first
