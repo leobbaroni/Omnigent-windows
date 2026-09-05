@@ -24,6 +24,8 @@
 - User screenshots (old installed build, owner TugaPlayz): SPA Local CLI page "Not found"; Updates page 404 on releases.atom. Fixes: SPA `cli-get-status` / `cli-reset-path` now report the active backend (`currentCliStatus`, WSL-aware); update-check HTTP errors mapped to a readable message (404 → "No release published yet at owner/repo", no headers/cookies leaked into the UI); caption buttons (Window Controls Overlay) now sample the page background under them and blend in (no fixed black); version 0.12.1; first GitHub Release so installed apps have a feed.
 - Old installs (feed owner TugaPlayz) can't self-update: install 0.12.1 once from Releases; from then on updates come from leobbaroni/Omnigent-windows.
 
+- First release published (v0.12.1, CI-built). electron-builder created two releases on the tag (upload race); merged by hand, workflow now pre-creates the release. Build workflow builds with `--publish never`.
+
 ## Open / next
 - Hand-verify notifications/badge with a background session, deep links, OAuth popups, file drag-drop on Windows.
 - First GitHub Release to exercise electron-updater; code-signing secrets.

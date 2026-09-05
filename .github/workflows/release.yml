@@ -61,6 +61,16 @@ jobs:
             exit 1
           fi
 
+      # Create the release up front so electron-builder's parallel uploads
+      # attach to one release instead of racing to create two.
+      - name: Ensure the GitHub Release exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Omnigent for Windows ${tag#v}" --generate-notes
+
       - name: Build and publish to the GitHub Release
         working-directory: app
         run: pnpm exec electron-builder --win --publish always
