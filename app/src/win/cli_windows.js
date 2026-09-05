@@ -130,9 +130,24 @@ function killTree(pid, { exec = execFile } = {}) {
   });
 }
 
+/**
+ * Render a CLI command (string path or {executable, prefixArgs}) plus args as
+ * a PowerShell command line for the visible console runner.
+ *
+ * @param {string | { executable: string, prefixArgs?: string[] }} cmd
+ * @param {string[]} args
+ * @returns {string}
+ */
+function cliCommandString(cmd, args) {
+  const q = (s) => (/[\s'"&|<>()]/.test(s) ? `'${String(s).replace(/'/g, "''")}'` : s);
+  if (typeof cmd === "string") return ["&", q(cmd), ...args.map(q)].join(" ");
+  return [cmd.executable, ...(cmd.prefixArgs || []), ...args].map(q).join(" ");
+}
+
 module.exports = {
   IS_WIN,
   CLI_NAMES,
+  cliCommandString,
   INSTALL_COMMAND_WINDOWS,
   cliEnv,
   spawnOptions,

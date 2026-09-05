@@ -191,6 +191,8 @@ function createSettingsWindow(deps) {
           return integration.checkOmnigentUpdates();
         case "upgrade-omnigent":
           return integration.upgradeOmnigent();
+        case "setup-harnesses":
+          return integration.setupHarnesses();
         default:
           return { ok: false, error: `unknown action ${name}` };
       }

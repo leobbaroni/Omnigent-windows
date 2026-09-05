@@ -70,6 +70,7 @@ const winBootstrap = require("./win/bootstrap");
 const winCompat = require("./win/compat");
 const { createWindowsIntegration } = require("./win/integration");
 const winWsl = require("./win/wsl");
+const winChrome = require("./win/chrome");
 const { createSettingsWindow } = require("./win/settings_window");
 /** [win] Shell-owned Windows settings window; null off Windows. */
 let winSettings = null;
@@ -1423,6 +1424,9 @@ function createWindow(targetUrl, opts = {}) {
           trafficLightPosition: { x: 16, y: 17 },
         }
       : {}),
+    // [win] Seamless look: hidden title bar + themed caption buttons (Window
+    // Controls Overlay); the shell injects the drag strip CSS (src/win/chrome.js).
+    ...(process.platform === "win32" ? winChrome.windowOptions(nativeTheme.shouldUseDarkColors) : {}),
     webPreferences: {
       // Security: the SPA is remote/untrusted relative to the shell, so we
       // keep Node out of the renderer and isolate the preload's context.
@@ -1480,6 +1484,15 @@ function createWindow(targetUrl, opts = {}) {
   });
   // [win] close-to-tray, badge overlay, hidden login launch.
   if (winIntegration) winIntegration.onWindowCreated(win);
+  // [win] drag strip + caption-button clearance CSS on every load.
+  if (process.platform === "win32") {
+    winChrome.attach(win, {
+      pinnedOrigin: () => pinnedOrigin(win),
+      setupPagePathname: SETUP_PAGE_URL.pathname,
+      isDark: () => nativeTheme.shouldUseDarkColors,
+      log: (m) => console.log(m),
+    });
+  }
   registerWorkspaceRootBounce(win.webContents, () => pinnedOrigin(win));
   // Show the return banner when the window navigates away from its server
   // (e.g. SSO) and stays away. The watch's on-away URL is the last committed
@@ -3126,6 +3139,30 @@ function registerIpc() {
     if (scheme === "light" || scheme === "dark" || scheme === "system") {
       nativeTheme.themeSource = scheme;
     }
+    // [win] keep the caption buttons in step with the app theme.
+    if (process.platform === "win32") {
+      for (const win of windows.keys()) winChrome.syncOverlay(win, nativeTheme.shouldUseDarkColors);
+    }
+  });
+
+  // [win] SPA → native folder dialog for the working-directory field (see
+  // src/win/folder_picker_preload.js). Returns only the chosen path, converted
+  // to a /mnt/<drive>/… path when the local backend runs inside WSL.
+  ipcMain.handle("omnigent:win-pick-directory", async (event) => {
+    if (!isPinnedOriginSender(event)) {
+      console.warn("[omnigent] win-pick-directory from untrusted sender dropped");
+      return null;
+    }
+    const win = BrowserWindow.fromWebContents(event.sender) ?? activeWindow();
+    const result = await dialog.showOpenDialog(win ?? undefined, {
+      title: "Choose a working directory",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const picked = result.filePaths[0];
+    const settings = loadSettings();
+    const useWsl = winWsl.isWslMode(settings) && omnigentCli.isLoopbackServer(senderServerUrl(event) ?? "");
+    return { path: useWsl ? winWsl.toWslPath(picked) : picked, wsl: useWsl };
   });
 
   // SPA → start / stop / restart this machine's host daemon for the window's

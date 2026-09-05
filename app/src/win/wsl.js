@@ -85,4 +85,18 @@ async function cliStatus(command, runCli) {
   };
 }
 
-module.exports = { MODE_KEY, DISTRO_KEY, isWslMode, wslCliCommand, activeCliCommand, listDistros, cliStatus };
+/**
+ * Convert a Windows path to its WSL mount path (`C:\Users\x` → `/mnt/c/Users/x`).
+ * UNC and already-POSIX paths are returned unchanged.
+ *
+ * @param {string} p
+ * @returns {string}
+ */
+function toWslPath(p) {
+  const s = String(p || "");
+  const m = /^([A-Za-z]):[\\/](.*)$/.exec(s);
+  if (!m) return s;
+  return `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, "/")}`.replace(/\/+$/, "") || `/mnt/${m[1].toLowerCase()}`;
+}
+
+module.exports = { MODE_KEY, DISTRO_KEY, isWslMode, wslCliCommand, activeCliCommand, listDistros, cliStatus, toWslPath };

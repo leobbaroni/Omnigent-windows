@@ -15,6 +15,72 @@
 "use strict";
 
 const { contextBridge, ipcRenderer } = require("electron");
+// [win] Native folder picker button next to the SPA's working-directory
+// fields (DOM enhancement in the isolated world; no-op off Windows). Inlined
+// because the renderer is sandboxed (Electron default), which limits a preload
+// to built-in modules — `require("./win/…")` is unavailable here. Keep in sync
+// with src/win/folder_picker_preload.js, the unit-tested reference copy.
+(() => {
+  if (process.platform !== "win32" || typeof document === "undefined") return;
+  const IPC_CHANNEL = "omnigent:win-pick-directory";
+  const ICON_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg>';
+  const setValue = (input, value) => {
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    if (desc && desc.set) desc.set.call(input, value);
+    else input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const enhance = (anchor, inputSelector, commitWithEnter) => {
+    if (anchor.dataset.winPicker === "1") return;
+    anchor.dataset.winPicker = "1";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = anchor.className;
+    btn.title = "Choose a folder on this PC…";
+    btn.setAttribute("aria-label", "Choose a folder on this PC");
+    btn.dataset.testid = "win-pick-directory";
+    btn.innerHTML = ICON_SVG;
+    btn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      btn.disabled = true;
+      try {
+        const res = await ipcRenderer.invoke(IPC_CHANNEL);
+        if (res && typeof res.path === "string" && res.path) {
+          const scope = anchor.closest('[data-testid="workspace-picker"]') || document;
+          const input = scope.querySelector(inputSelector) || document.querySelector(inputSelector);
+          if (input) {
+            setValue(input, res.path);
+            input.focus();
+            if (commitWithEnter) input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+          }
+        }
+      } catch (err) {
+        console.warn("[omnigent][win] folder picker failed:", err);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    anchor.insertAdjacentElement("afterend", btn);
+  };
+  const scan = () => {
+    for (const el of document.querySelectorAll('[data-testid="workspace-browse-toggle"]')) {
+      enhance(el, '[data-testid="workspace-path-input"]', false);
+    }
+    for (const el of document.querySelectorAll('[data-testid="workspace-picker-home"]')) {
+      enhance(el, '[data-testid="workspace-picker-path-input"]', true);
+    }
+  };
+  const start = () => {
+    scan();
+    if (document.body) new MutationObserver(scan).observe(document.body, { childList: true, subtree: true });
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
+  else start();
+})();
 
 // Collapse the update states the in-page UpdateBanner renders on
 // (available / downloading / downloaded / error-security) to `idle` so the server page can

@@ -1,0 +1,72 @@
+name: Build (Windows)
+
+# Unit tests + an unsigned Windows build on every push / PR. Installer and
+# portable artifacts are uploaded for manual testing; releases are cut by
+# release.yml on version tags.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+
+jobs:
+  test-and-build:
+    name: Test + build
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable pnpm (corepack, pinned by app/package.json)
+        run: corepack enable
+
+      - name: Install app dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        working-directory: app
+        run: node --test
+
+      - name: Verify vendored shell matches the pinned upstream commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          lock_commit=$(node -p "require('./upstream.lock.json').commit")
+          git clone --filter=blob:none --no-checkout https://github.com/omnigent-ai/omnigent omnigent-upstream
+          git -C omnigent-upstream checkout "$lock_commit"
+          node scripts/sync-upstream.mjs --check --upstream omnigent-upstream || echo "::warning::vendored shell differs from upstream (expected when hooked files changed upstream — review the .upstream sidecars)"
+
+      - name: Build installer + portable (unsigned)
+        working-directory: app
+        run: pnpm run build:win
+        env:
+          # No publishing on CI builds; release.yml publishes.
+          EP_DRAFT: "false"
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnigent-windows-${{ github.sha }}
+          path: |
+            app/dist/*.exe
+            app/dist/*.blockmap
+            app/dist/latest.yml
+          if-no-files-found: error

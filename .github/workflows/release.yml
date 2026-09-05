@@ -1,0 +1,80 @@
+name: Release (Windows)
+
+# On a version tag (v0.12.0, v0.12.1-win.2 …): build the NSIS installer, the
+# portable exe and electron-updater's latest.yml, and publish them to a GitHub
+# Release. electron-updater in installed apps reads that release (publish
+# provider "github" in app/package.json), so tagging IS the update rollout.
+#
+# Code signing: set the CSC_LINK (base64 PFX or a file: URL) and
+# CSC_KEY_PASSWORD repository secrets and electron-builder signs the exe/
+# installer automatically; without them the build is unsigned (SmartScreen
+# warns on first run). No workflow change is needed to turn signing on.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (must exist)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+
+jobs:
+  release:
+    name: Build + publish
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: corepack enable
+
+      - name: Install app dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        working-directory: app
+        run: node --test
+
+      - name: Check tag matches app version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          ver=$(node -p "require('./app/package.json').version")
+          if [ "${tag%%-*}" != "$ver" ]; then
+            echo "tag $GITHUB_REF_NAME does not match app/package.json version $ver" >&2
+            exit 1
+          fi
+
+      - name: Build and publish to the GitHub Release
+        working-directory: app
+        run: pnpm exec electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional signing secrets (see header). Empty values are ignored.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Upload build artifacts (also attached to the release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnigent-windows-release-${{ github.ref_name }}
+          path: |
+            app/dist/*.exe
+            app/dist/*.blockmap
+            app/dist/latest.yml

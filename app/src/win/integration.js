@@ -20,20 +20,7 @@ const path = require("path");
 const badge = require("./badge");
 const bootstrap = require("./bootstrap");
 const { createStartup } = require("./startup");
-
-/**
- * Render a CLI command (string path or {executable, prefixArgs}) plus args as
- * a PowerShell command line for the visible console runner.
- *
- * @param {string | { executable: string, prefixArgs?: string[] }} cmd
- * @param {string[]} args
- * @returns {string}
- */
-function cliCommandString(cmd, args) {
-  const q = (s) => (/[\s'"&|<>()]/.test(s) ? `'${String(s).replace(/'/g, "''")}'` : s);
-  if (typeof cmd === "string") return ["&", q(cmd), ...args.map(q)].join(" ");
-  return [cmd.executable, ...(cmd.prefixArgs || []), ...args].map(q).join(" ");
-}
+const { cliCommandString } = require("./cli_windows");
 
 const HEARTBEAT_MS = 30000;
 
@@ -396,6 +383,41 @@ function createWindowsIntegration(deps) {
     }
   }
 
+  /**
+   * Guided `omni setup` (the interactive harness/model/credential picker):
+   * confirm, then run in a visible PowerShell window. This is what the SPA's
+   * "<harness> isn't configured on <host> — run omni setup" notice asks for.
+   */
+  async function setupHarnesses() {
+    const cmd = resolvedCliPath();
+    if (!cmd) {
+      reveal();
+      return { ok: false, error: "cli missing" };
+    }
+    const command = cliCommandString(cmd, ["setup"]);
+    const { response } = await dialog.showMessageBox(activeWindow() ?? undefined, {
+      type: "question",
+      title: "Set up agent harnesses",
+      message: "Run Omnigent's interactive setup?",
+      detail:
+        "Omnigent will open a PowerShell window and run exactly this command:\n\n" +
+        `${command}\n\n` +
+        "It lets you pick a model provider and credentials for each harness (Claude Code, Codex, Cursor, …) and set defaults. Nothing runs without this confirmation.",
+      buttons: ["Run in PowerShell", "Cancel"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (response !== 0) return { ok: false, cancelled: true };
+    try {
+      const { pid } = bootstrap.runInConsole(command);
+      log.info(`[win] omni setup started in a console window (pid ${pid})`);
+      return { ok: true, pid, command };
+    } catch (err) {
+      log.warn("[win] omni setup failed to start", err);
+      return { ok: false, error: String(err && err.message ? err.message : err) };
+    }
+  }
+
   // ---- heartbeat for an owned server ---------------------------------------
 
   function startHeartbeat() {
@@ -461,6 +483,7 @@ function createWindowsIntegration(deps) {
       { type: "separator" },
       { label: "Check for App Updates…", click: () => checkForUpdates() },
       { label: "Check for Omnigent Updates…", click: () => void checkOmnigentUpdates() },
+      { label: "Set Up Agent Harnesses (omni setup)…", click: () => void setupHarnesses() },
       ...(deps.openSettings ? [{ label: "Settings…", click: () => deps.openSettings() }] : []),
       { label: "Open Log Folder", click: () => void shell.openPath(logDir) },
       { type: "separator" },
@@ -528,6 +551,7 @@ function createWindowsIntegration(deps) {
     restartLocalServer,
     checkOmnigentUpdates,
     upgradeOmnigent,
+    setupHarnesses,
     startHeartbeat,
     stopHeartbeat,
     syncStartWithWindows,
