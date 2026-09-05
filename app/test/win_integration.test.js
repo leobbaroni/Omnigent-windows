@@ -283,8 +283,12 @@ describe("win integration: local server actions", () => {
   it("menu template carries every required action", () => {
     const h = harness();
     const labels = h.integ.trayMenuTemplate().map((i) => i.label).filter(Boolean);
-    for (const l of ["Open Omnigent", "New Window", "Start local server", "Stop local server", "Restart local server", "Change Server…", "Check for App Updates…", "Open Log Folder", "Quit Omnigent"]) {
+    for (const l of ["Open Omnigent", "New Window", "Start local server", "Stop local server", "Restart local server", "Change Server…", "Reconnect This Machine as Host", "Manage", "Check for App Updates…", "Open Log Folder", "Quit Omnigent"]) {
       assert.ok(labels.includes(l), `missing ${l}`);
+    }
+    const manage = h.integ.trayMenuTemplate().find((i) => i.label === "Manage").submenu.map((i) => i.label).filter(Boolean);
+    for (const l of ["Automations", "Inbox", "Omnigent Settings", "Policies", "Claude Code Plugins & Skills…", "Set Up Agent Harnesses (omni setup)…"]) {
+      assert.ok(manage.includes(l), `missing Manage › ${l}`);
     }
   });
 

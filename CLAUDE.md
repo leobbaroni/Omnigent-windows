@@ -1,6 +1,6 @@
 # Omnigent for Windows — agent instructions
 
-- Push policy: local commits only; no remote configured. Do not add remotes or push.
+- Push policy: `origin` is the user's GitHub repo (added 2026-09-05 at the user's request). Commit locally as you go; push to `main` only when the user asks. Never force-push.
 - Upstream Omnigent is read-only at `../omnigent-upstream` (pinned in `upstream.lock.json`). Never edit it.
 - Windows-owned code lives in `app/src/win/`. Hooks into vendored upstream files are marked with `// [win]`.
 - Never install Omnigent or any tool silently on the user's machine from the app; the bootstrap must confirm with a dialog and run visibly.

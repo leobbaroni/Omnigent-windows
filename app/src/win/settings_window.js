@@ -19,7 +19,7 @@ const compat = require("./compat");
 const PAGE = path.join(__dirname, "..", "..", "settings-win", "index.html");
 const PRELOAD = path.join(__dirname, "settings_preload.js");
 
-const BOOL_KEYS = ["win_close_to_tray", "win_start_with_windows", "win_notifications_enabled", "win_auto_start_local"];
+const BOOL_KEYS = ["win_close_to_tray", "win_start_with_windows", "win_notifications_enabled", "win_auto_start_local", "win_auto_host"];
 
 /**
  * Compare two file:// pathnames the way Windows does: percent-decoded (Node's
@@ -115,6 +115,7 @@ function createSettingsWindow(deps) {
         win_start_with_windows: s.win_start_with_windows === true,
         win_notifications_enabled: s.win_notifications_enabled !== false,
         win_auto_start_local: s.win_auto_start_local === true,
+        win_auto_host: s.win_auto_host === true,
         win_local_mode: s.win_local_mode === "wsl" ? "wsl" : "native",
         win_wsl_distro: typeof s.win_wsl_distro === "string" ? s.win_wsl_distro : "",
         server_url: typeof s.server_url === "string" ? s.server_url : null,
@@ -213,6 +214,10 @@ function createSettingsWindow(deps) {
           return integration.upgradeOmnigent();
         case "setup-harnesses":
           return integration.setupHarnesses();
+        case "reconnect-host":
+          return integration.reconnectHost();
+        case "manage-claude-code":
+          return integration.manageClaudeCode();
         default:
           return { ok: false, error: `unknown action ${name}` };
       }

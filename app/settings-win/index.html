@@ -49,6 +49,8 @@
           <select id="local-mode"><option value="native">Native Windows</option><option value="wsl">WSL distro</option></select></div>
         <div class="row" id="distro-row"><div class="l">WSL distro</div><select id="wsl-distro"></select></div>
         <div class="row"><div class="l">Start the local server when Omnigent launches</div><input class="switch" type="checkbox" id="auto-start" /></div>
+        <div class="row"><div class="l">Host this machine automatically<small>After the local server is up, reconnect this PC as the host (fixes "Host is offline" without running commands). Turns on by itself the first time you host from the app.</small></div><input class="switch" type="checkbox" id="auto-host" /></div>
+        <div class="row"><div class="l">Host connection</div><span class="actions"><button data-action="reconnect-host">Reconnect this machine now</button></span></div>
         <div class="row"><div class="l">Local server<small id="server-status">—</small></div>
           <span class="actions"><button data-action="start-server">Start</button><button data-action="stop-server">Stop</button><button data-action="restart-server">Restart</button></span></div>
       </section>
@@ -69,6 +71,7 @@
         <div class="kv" id="kv"></div>
         <div class="actions">
           <button data-action="setup-harnesses">Set Up Agent Harnesses (omni setup)…</button>
+          <button data-action="manage-claude-code">Claude Code Plugins &amp; Skills…</button>
           <button data-action="check-omnigent-updates">Check for Omnigent Updates…</button>
           <button data-action="upgrade-omnigent">Update Omnigent…</button>
           <button data-action="open-logs">Open Log Folder</button>

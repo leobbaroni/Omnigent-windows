@@ -241,6 +241,15 @@ function createWindowsIntegration(deps) {
         const current = win.webContents.getURL();
         if (!current.startsWith(res.url)) loadServerUrl(win, res.url);
         startHeartbeat();
+        // Let the shell re-enrol this machine as the host when the user set
+        // that up before (win_auto_host).
+        if (typeof deps.onLocalServerReady === "function") {
+          try {
+            deps.onLocalServerReady(res.url);
+          } catch (err) {
+            log.warn("[win] onLocalServerReady failed", err);
+          }
+        }
       } else {
         log.warn(`[win] local server start failed: ${res.error}`);
         await dialog.showMessageBox(activeWindow() ?? undefined, {
@@ -383,6 +392,60 @@ function createWindowsIntegration(deps) {
     }
   }
 
+  /** One click: (re)connect this machine as the host for the current server. */
+  async function reconnectHost() {
+    if (typeof deps.reconnectHost !== "function") return { ok: false, error: "unavailable" };
+    busy = true;
+    rebuildTrayMenu();
+    try {
+      const res = await deps.reconnectHost();
+      if (!res.ok) {
+        await dialog.showMessageBox(activeWindow() ?? undefined, {
+          type: "warning",
+          title: "Omnigent",
+          message: "Could not connect this machine as a host",
+          detail: res.error || "Unknown error",
+          buttons: ["OK"],
+        });
+      } else {
+        log.info(`[win] host ${res.adopted ? "adopted" : "connected"} for ${res.serverUrl}`);
+      }
+      return res;
+    } finally {
+      busy = false;
+      rebuildTrayMenu();
+    }
+  }
+
+  /**
+   * Open Claude Code inside the active backend so the user can manage its
+   * plugins and skills (`/plugin`, `/skills`) — Claude Code owns those, and
+   * Omnigent passes `/name` commands to it verbatim inside sessions.
+   */
+  async function manageClaudeCode() {
+    const cmd = resolvedCliPath();
+    const distro = typeof cmd === "object" && cmd && cmd.prefixArgs ? cmd.prefixArgs[1] : null;
+    const command = distro ? `wsl -d ${distro} --shell-type login -- claude` : "claude";
+    const { response } = await dialog.showMessageBox(activeWindow() ?? undefined, {
+      type: "question",
+      title: "Claude Code plugins & skills",
+      message: distro ? `Open Claude Code inside ${distro}?` : "Open Claude Code?",
+      detail:
+        `Omnigent will open a PowerShell window running:\n\n${command}\n\n` +
+        "Inside it, use /plugin to install or remove plugins and /skills to list skills. Omnigent sessions pass /commands straight to Claude Code, so anything enabled here works in the app. Type /exit when done.",
+      buttons: ["Open", "Cancel"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (response !== 0) return { ok: false, cancelled: true };
+    try {
+      const { pid } = bootstrap.runInConsole(command);
+      return { ok: true, pid };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message ? err.message : err) };
+    }
+  }
+
   /**
    * Guided `omni setup` (the interactive harness/model/credential picker):
    * confirm, then run in a visible PowerShell window. This is what the SPA's
@@ -480,10 +543,31 @@ function createWindowsIntegration(deps) {
         click: () => void restartLocalServer(),
       },
       { label: "Change Server…", click: () => changeServer() },
+      {
+        label: "Reconnect This Machine as Host",
+        enabled: !busy,
+        click: () => void reconnectHost(),
+      },
+      { type: "separator" },
+      {
+        label: "Manage",
+        submenu: [
+          { label: "New Session (agents, skills, MCP connectors)", click: () => deps.openInApp?.("/") },
+          { label: "Automations", click: () => deps.openInApp?.("/tasks") },
+          { label: "Inbox", click: () => deps.openInApp?.("/inbox") },
+          { type: "separator" },
+          { label: "Omnigent Settings", click: () => deps.openInApp?.("/settings/general") },
+          { label: "Sandbox Integrations", click: () => deps.openInApp?.("/settings/integrations") },
+          { label: "Policies", click: () => deps.openInApp?.("/settings/policies") },
+          { label: "Local CLI", click: () => deps.openInApp?.("/settings/cli") },
+          { type: "separator" },
+          { label: "Claude Code Plugins & Skills…", click: () => void manageClaudeCode() },
+          { label: "Set Up Agent Harnesses (omni setup)…", click: () => void setupHarnesses() },
+        ],
+      },
       { type: "separator" },
       { label: "Check for App Updates…", click: () => checkForUpdates() },
       { label: "Check for Omnigent Updates…", click: () => void checkOmnigentUpdates() },
-      { label: "Set Up Agent Harnesses (omni setup)…", click: () => void setupHarnesses() },
       ...(deps.openSettings ? [{ label: "Settings…", click: () => deps.openSettings() }] : []),
       { label: "Open Log Folder", click: () => void shell.openPath(logDir) },
       { type: "separator" },
@@ -552,6 +636,8 @@ function createWindowsIntegration(deps) {
     checkOmnigentUpdates,
     upgradeOmnigent,
     setupHarnesses,
+    reconnectHost,
+    manageClaudeCode,
     startHeartbeat,
     stopHeartbeat,
     syncStartWithWindows,

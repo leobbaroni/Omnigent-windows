@@ -28,7 +28,10 @@ by hand) and observed; "unit-tested" means covered by `node --test` only.
 | Multiple windows / multiple servers / deep links / OAuth popups / browser panes / file drag-drop | upstream code paths unchanged; unit tests green (490) — not re-driven by hand on Windows in this pass |
 | Real-install e2e (`app/e2e/win_smoke.e2e.js`): Start locally → SPA (bridge `kind: electron`, no Windows IPC exposed to the page) → Settings shows running server + CLI version → Quit exits → owned server stopped | `ok 1` in 17 s |
 | Packaged build: `Omnigent-Setup-0.12.0.exe` (NSIS, per-user, choose folder), `Omnigent-0.12.0-portable.exe`, `latest.yml` + blockmap; unpacked app boots as `isPackaged=true`, shows setup, quits | electron-builder 26.15.3 output; `dev-packaged-smoke` |
-| Unit suite | 490 tests, 0 failures |
+| Automatic host reconnect: with the WSL host stopped, launching with *Host this machine automatically* re-enrolled it in 4 s (`reconnect host … ok`); tray *Reconnect This Machine as Host* and Settings button use the same path | shell log; `dev-screenshot --settings` run |
+| Tray ▸ Manage: New Session, Automations, Inbox, Omnigent Settings / Sandbox Integrations / Policies / Local CLI (in-app navigation), Claude Code Plugins & Skills (opens `claude` in the backend), `omni setup` | tray template tests |
+| `/cockpit:pilot what's next` sent from the app in a WSL Claude Code session executed and rendered; skills listed in the in-session menu under *Skills* (plugin-namespaced) | `dev-session-slash` run |
+| Unit suite | 492 tests, 0 failures |
 
 ## Partially supported
 
@@ -64,7 +67,7 @@ by hand) and observed; "unit-tested" means covered by `node --test` only.
 
 ## Recommended next work
 
-1. Sign in to Claude inside the WSL distro and run the manual test list (README) for slash commands, skills, and the question tool; record results here.
+1. Notifications/badge with a background session, deep links, OAuth popups and file drag-drop were not re-driven by hand on Windows in this pass (upstream code paths, unit-tested).
 2. Upstream candidates: the Windows quit-hang fix, Windows CLI discovery, `windowsHide`, the WSL backend, and a native `pickDirectory` bridge method (so the folder picker no longer depends on SPA test ids).
 3. Publish a first GitHub Release to exercise electron-updater end to end; add a code-signing certificate (secrets only, no workflow change).
 4. Consider making WSL the default local mode when a distro with Omnigent is detected.

@@ -34,6 +34,7 @@
     distro.value = s.settings.win_wsl_distro || (names[0] ?? "");
     $("distro-row").hidden = s.settings.win_local_mode !== "wsl";
     $("auto-start").checked = s.settings.win_auto_start_local;
+    $("auto-host").checked = s.settings.win_auto_host;
     const srv = s.server;
     $("server-status").textContent =
       srv.state === "running"
@@ -108,6 +109,7 @@
   $("local-mode").addEventListener("change", (e) => set({ win_local_mode: e.target.value, win_wsl_distro: $("wsl-distro").value }));
   $("wsl-distro").addEventListener("change", (e) => set({ win_wsl_distro: e.target.value }));
   $("auto-start").addEventListener("change", (e) => set({ win_auto_start_local: e.target.checked }));
+  $("auto-host").addEventListener("change", (e) => set({ win_auto_host: e.target.checked }));
   $("close-to-tray").addEventListener("change", (e) => set({ win_close_to_tray: e.target.checked }));
   $("start-with-windows").addEventListener("change", (e) => set({ win_start_with_windows: e.target.checked }));
   $("notifications").addEventListener("change", (e) => set({ win_notifications_enabled: e.target.checked }));

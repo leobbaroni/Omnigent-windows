@@ -15,7 +15,12 @@
 - Phase 7: installer + portable + latest.yml built (electron-builder needs a `pnpm` shim on PATH); GitHub Actions for build and release; README, ARCHITECTURE, COMPAT, PARITY written. e2e `win_smoke` green.
 - Machine changes left in place (all reversible): `uv tool install omnigent` (uninstall: `uv tool uninstall omnigent`), WSL distro `Ubuntu` with Omnigent + Claude CLI (`wsl --unregister Ubuntu`), `%LOCALAPPDATA%\corepack-shims`, `%USERPROFILE%\omnigent-e2e-workspace`, `~/.omnigent` data dirs (Windows and WSL).
 
+## 2026-09-05 — user feedback round
+- Portable build: fixed the `~`/%7E setup-page IPC gate (was "CLI not found"); rebuilt.
+- WSL: user created a Linux user and installed Omnigent via the panel; Claude Code installed for that user; user signed in. Verified AskUserQuestion, in-session `/` menu with plugin skills, `/cockpit:pilot` execution.
+- Added: Reconnect-host (tray, settings), automatic host reconnect on launch (`win_auto_host`), tray Manage submenu (in-app navigation + Claude Code plugins), setup panel Claude sign-in step with live detection, `scripts/setup.ps1`, README polish, GitHub remote.
+
 ## Open / next
-- Sign in to Claude inside WSL and run the README manual list for slash commands, skills, question tool.
+- Hand-verify notifications/badge with a background session, deep links, OAuth popups, file drag-drop on Windows.
 - First GitHub Release to exercise electron-updater; code-signing secrets.
 - Upstream the Windows fixes (quit hang, CLI discovery, windowsHide, WSL backend, folder picker bridge).

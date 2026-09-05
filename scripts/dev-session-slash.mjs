@@ -98,10 +98,17 @@ const menu = await page.evaluate(() => {
 });
 stage(`slash menu (${menu.length}): ${JSON.stringify(menu)}`);
 await shot(page, "slash-menu.png");
-await page.keyboard.type("he");
-await new Promise((r) => setTimeout(r, 800));
-await shot(page, "slash-menu-filtered.png");
 await page.keyboard.press("Escape");
+await page.keyboard.press("Control+A");
+await page.keyboard.press("Backspace");
+// Send a Claude Code plugin skill command verbatim (not listed in the menu).
+const cmd = process.env.OMNIGENT_E2E_SLASH || "/pilot what's next";
+await page.keyboard.type(cmd);
+await page.keyboard.press("Enter");
+stage(`sent ${cmd}`);
+await new Promise((r) => setTimeout(r, 45000));
+await shot(page, "slash-cmd-result.png");
+stage("after slash cmd: " + (await page.evaluate(() => document.body.innerText.slice(0, 2500))));
 await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("quit_app")?.click());
 await new Promise((r) => setTimeout(r, 3000));
 stage(`exited=${exited}`);

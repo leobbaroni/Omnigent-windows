@@ -1023,6 +1023,42 @@ function resolvedCliPath() {
 }
 
 /**
+ * [win] Connect (or re-adopt) this machine as a host for a server, from the
+ * tray / settings / auto-start — the one-click answer to the SPA's "Host is
+ * offline — run `omnigent host --server …`" dialog. Uses the same CLI, auth
+ * and ownership rules as the SPA-driven host-control path. When `remember`
+ * is set, records that the user hosts from this machine so future launches
+ * reconnect automatically (`win_auto_host`).
+ *
+ * @param {{ serverUrl?: string | null, remember?: boolean }} [opts]
+ */
+async function winReconnectHost({ serverUrl = null, remember = true } = {}) {
+  const win = activeWindow();
+  const owned = serverManager.ownedLocalServer();
+  const url =
+    serverUrl ||
+    (win && windows.get(win)?.serverUrl) ||
+    (owned && owned.url) ||
+    (typeof loadSettings().server_url === "string" ? loadSettings().server_url : null);
+  if (!url) return { ok: false, error: "No server to host for — open a server window first." };
+  const cliCommand = hostCliCommand(url);
+  if (!cliCommand) return { ok: false, error: "The omnigent CLI was not found. Install it or set its path." };
+  const auth = await serverManager.ensureServerAuth(cliCommand, url);
+  if (!auth.ok) return { ok: false, error: auth.error, authError: auth.authError };
+  const result = await serverManager.ensureHostConnected(cliCommand, url);
+  if (result.ok && remember) {
+    const settings = loadSettings();
+    if (settings.win_auto_host !== true) {
+      settings.win_auto_host = true;
+      saveSettings(settings);
+    }
+  }
+  console.log(`[win] reconnect host for ${url} -> ${JSON.stringify(result)}`);
+  broadcastHostStatus();
+  return { ...result, serverUrl: url };
+}
+
+/**
  * [win] CLI status for the active backend: the WSL distro's CLI when WSL mode
  * is on, else the native (configured / PATH / candidate) binary.
  *
@@ -3226,6 +3262,15 @@ function registerIpc() {
     } else {
       result = { ok: false, error: `unknown host action '${action}'` };
     }
+    // [win] The user hosts from this machine: reconnect automatically on
+    // future launches (tray / settings can turn it off).
+    if (result && result.ok && (action === "start" || action === "restart")) {
+      const settings = loadSettings();
+      if (settings.win_auto_host !== true) {
+        settings.win_auto_host = true;
+        saveSettings(settings);
+      }
+    }
     broadcastHostStatus();
     return result;
   });
@@ -3697,6 +3742,18 @@ if (!gotLock) {
           void updater.checkForUpdates({ manual: true }).catch(() => {});
         },
         openSettings: () => winSettings?.open(activeWindow()),
+        reconnectHost: () => winReconnectHost(),
+        onLocalServerReady: (url) => {
+          if (loadSettings().win_auto_host === true) {
+            void winReconnectHost({ serverUrl: url, remember: false }).catch((err) =>
+              console.warn("[win] auto host reconnect failed:", err),
+            );
+          }
+        },
+        openInApp: (routePath) => {
+          const win = winIntegration ? winIntegration.reveal() : activeWindow();
+          if (win) sendOpenPath(win, routePath);
+        },
         iconPath: path.join(__dirname, "..", "icons", "icon.ico"),
         logDir: winLog ? winLog.dir : app.getPath("logs"),
         log: winLog ?? console,
@@ -3720,6 +3777,7 @@ if (!gotLock) {
           aboutWindow.open(activeWindow());
           void updater.checkForUpdates({ manual: true }).catch(() => {});
         },
+        reconnectHost: () => winReconnectHost(),
         logDir: winLog ? winLog.dir : app.getPath("logs"),
         settingsPath: settingsPath(),
         log: winLog ?? console,
