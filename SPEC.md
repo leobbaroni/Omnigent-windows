@@ -165,4 +165,15 @@ Non-goals:
 
 ## Spec corrections
 
-(none yet)
+- 2026-09-05 (user): the window must look seamless (no native title bar or
+  menu bar). Implemented with Window Controls Overlay + injected drag CSS
+  (`app/src/win/chrome.js`); menu bar stays reachable with Alt.
+- 2026-09-05 (user): a native Windows folder dialog must set the working
+  directory. Implemented as a preload enhancement on the SPA's workspace
+  picker (`omnigent:win-pick-directory`).
+- 2026-09-05 (verified): on a native Windows host Omnigent refuses its
+  terminal harnesses (Claude Code, Codex, …). R4 now recommends WSL as the
+  local mode for the full experience; R8's WSL backend uses
+  `wsl --shell-type login`, verified on Ubuntu 26.04 (D4/A7 confirmed).
+- 2026-09-05: R3 gained an `omni setup` step and a WSL section (install
+  distro, install Omnigent inside).

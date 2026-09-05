@@ -26,6 +26,8 @@ by hand) and observed; "unit-tested" means covered by `node --test` only.
 | Compatibility gate: tested/min versions, one-time notice for untested versions | compat tests; 0.12.0 recognised as tested |
 | Omnigent updates: `omni upgrade --check` result dialog; guided `omni upgrade` in a visible console | integration tests (exit-code contract) |
 | Multiple windows / multiple servers / deep links / OAuth popups / browser panes / file drag-drop | upstream code paths unchanged; unit tests green (490) — not re-driven by hand on Windows in this pass |
+| Real-install e2e (`app/e2e/win_smoke.e2e.js`): Start locally → SPA (bridge `kind: electron`, no Windows IPC exposed to the page) → Settings shows running server + CLI version → Quit exits → owned server stopped | `ok 1` in 17 s |
+| Packaged build: `Omnigent-Setup-0.12.0.exe` (NSIS, per-user, choose folder), `Omnigent-0.12.0-portable.exe`, `latest.yml` + blockmap; unpacked app boots as `isPackaged=true`, shows setup, quits | electron-builder 26.15.3 output; `dev-packaged-smoke` |
 | Unit suite | 490 tests, 0 failures |
 
 ## Partially supported

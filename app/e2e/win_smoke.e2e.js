@@ -65,7 +65,12 @@ test("Windows shell: start locally → SPA → settings → quit", { skip, timeo
     }
     assert.ok(setup, "setup page window");
     await setup.waitForLoadState("domcontentloaded");
+    // The page detects the CLI asynchronously; until then Start locally opens
+    // the CLI dialog instead of starting. The gear loses its attention dot
+    // once a CLI was found.
+    await setup.waitForSelector("#cli-gear:not([hidden]):not(.attention)", { timeout: 30_000 });
     await setup.waitForSelector("#start-local:not([disabled])", { timeout: 20_000 });
+    await new Promise((r) => setTimeout(r, 500));
     await setup.click("#start-local");
 
     // The click hands off to the server URL; the same page object navigates.

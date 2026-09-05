@@ -200,6 +200,20 @@ pnpm run build:win        # NSIS installer + portable exe + latest.yml in app/di
 pnpm run build:win:dir    # unpacked app only (fast smoke)
 ```
 
+electron-builder shells out to a `pnpm` binary to list dependencies, so `pnpm`
+must be on PATH (not only reachable as `corepack pnpm`). Without a global
+install, create user-level shims once and prepend them:
+
+```powershell
+corepack enable --install-directory "$env:LOCALAPPDATA\corepack-shims"
+$env:PATH = "$env:LOCALAPPDATA\corepack-shims;$env:PATH"
+```
+
+Builds are unsigned unless `CSC_LINK`/`CSC_KEY_PASSWORD` are set. The portable
+exe re-launches itself from a temp directory, so drive the unpacked build
+(`app/dist/win-unpacked/Omnigent.exe`) when automating; see
+`scripts/dev-packaged-smoke.mjs`.
+
 ## Release process
 
 1. Bump `app/package.json` `version` (semver; electron-updater compares it).

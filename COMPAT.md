@@ -225,10 +225,11 @@ From README "Windows (native)" and `_platform.py`:
 
 | Field | Value |
 |---|---|
-| Tested Omnigent (server + CLI) | 0.12.0 (PyPI) — pending the Phase 6 test run |
+| Tested Omnigent (server + CLI) | 0.12.0 (PyPI wheel on native Windows via `uv tool install`; Linux installer inside WSL Ubuntu 26.04), 2026-09-05 |
 | Shell vendored from | main @ `5d323ad` (shell reports 0.12.0) |
 | Minimum supported Omnigent | 0.7.0 (`server --background` flag; older CLIs only have `server start`) |
-| Known-good | 0.12.0 (pending) |
+| Known-good | 0.12.0 (e2e `win_smoke` green; WSL start/host verified; see PARITY.md) |
+| WSL invocation contract | `wsl.exe -d <distro> --shell-type login -- omnigent …` (needs WSL 2.x; `--shell-type` verified on 2.7.8) |
 | Known-incompatible | < 0.7.0 |
 | Required CLI commands | §4 |
 | Required endpoints | §7 |
