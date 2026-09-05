@@ -51,6 +51,7 @@ by hand) and observed; "unit-tested" means covered by `node --test` only.
 
 ## Known limitations and findings
 
+- Upstream setup-page IPC gate compared `pathToFileURL()` pathnames (which encode `~` as `%7E`) with the live frame URL (which keeps `~`); the portable build runs from a temp dir under a short 8.3 profile name (`TUGAPL~1`), so every setup IPC was rejected ("CLI not found", Run buttons dead). Fixed by decoding + case-folding both sides (`main.js` `[win]`, `settings_window.js`, `chrome.js`).
 - Upstream Windows quit hang: with the update-overlay child window alive, `app.quit()` never completed on Windows (reproduced on the untouched upstream shell). Fixed by destroying the overlay when its parent starts closing (`update_overlay.js` `[win]` hook).
 - Upstream CLI discovery had no Windows paths and spawned console windows; fixed (`cli_windows.js`).
 - A host daemon started from inside a Claude Code/Codex terminal inherits nested-session env vars and then reports Claude as `needs-auth`; the shell strips them (`cliEnv`).
