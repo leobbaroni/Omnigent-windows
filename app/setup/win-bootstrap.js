@@ -152,6 +152,7 @@
 
   function build(status) {
     const p = status.prereqs;
+    const installed = Boolean(status.cli && status.cli.installed);
     const detected = [
       `uv: ${p.uv.found ? p.uv.version : "not found"}`,
       `Python: ${p.python.found ? p.python.version : "not found"}${p.python.found && !p.python.ok ? " (3.12+ needed; uv will fetch it)" : ""}`,
@@ -163,18 +164,21 @@
       { class: "winb" },
       el("h3", { text: "Set up Omnigent on Windows" }),
       el("p", {
-        text: "Omnigent is not installed on this PC. Each step below shows the exact command. “Run in PowerShell…” first asks you to confirm, then opens a PowerShell window you can watch. Nothing is installed without your confirmation.",
+        text: (installed
+          ? `Omnigent ${status.cli && status.cli.wsl ? `is running inside WSL (${status.cli.distro})` : "is installed natively on this PC"}. `
+          : "Omnigent is not installed on this PC. ") +
+          "Each step below shows the exact command. “Run in PowerShell…” first asks you to confirm, then opens a PowerShell window you can watch. Nothing is installed without your confirmation.",
       }),
       el("p", { text: `Detected: ${detected}` }),
-      ...(status.wslRecommendation
+      ...(status.wslRecommendation && !(status.cli && status.cli.wsl)
         ? [
             el("h3", { text: "Recommended: run Omnigent in WSL" }),
             el("p", { text: status.wslRecommendation }),
             ...(status.wslSteps || []).map(stepCard),
-            el("h3", { text: "Alternative: native Windows (custom SDK agents only)" }),
+            el("h3", { text: installed ? "Native Windows install (custom SDK agents only)" : "Alternative: native Windows (custom SDK agents only)" }),
           ]
         : []),
-      ...status.steps.map(stepCard),
+      ...(installed ? status.steps.filter((s) => s.id === "setup") : status.steps).map(stepCard),
       el("p", { text: status.wslHint }),
       el(
         "div",
@@ -208,7 +212,13 @@
     if (posixLink && posixLink.closest("p")) posixLink.closest("p").hidden = true;
     const next = build(status);
     if (panel && panel.parentNode) panel.replaceWith(next);
-    else host.prepend(next);
+    else {
+      // Outside #cli-install (upstream hides that block once a CLI is found)
+      // so the WSL recommendation stays visible for native installs too.
+      const anchor = document.getElementById("cli-path-label");
+      if (anchor) anchor.insertAdjacentElement("beforebegin", next);
+      else host.prepend(next);
+    }
     panel = next;
   }
 
