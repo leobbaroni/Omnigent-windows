@@ -55,7 +55,7 @@ jobs:
 
       - name: Build installer + portable (unsigned)
         working-directory: app
-        run: pnpm run build:win
+        run: pnpm run build:win -- --publish never
         env:
           # No publishing on CI builds; release.yml publishes.
           EP_DRAFT: "false"
