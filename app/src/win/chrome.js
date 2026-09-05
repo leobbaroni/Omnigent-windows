@@ -127,7 +127,16 @@ function classify(url, pinnedOrigin, setupPagePathname) {
     return { isServerPage: false, isSetupPage: false };
   }
   if (u.protocol === "file:") {
-    return { isServerPage: false, isSetupPage: u.pathname === setupPagePathname };
+    // Decode + case-fold: pathToFileURL encodes `~` (%7E) while the live frame
+    // URL keeps it (portable builds run from a TUGAPL~1-style temp dir).
+    const norm = (p) => {
+      try {
+        return decodeURIComponent(p).toLowerCase();
+      } catch {
+        return String(p).toLowerCase();
+      }
+    };
+    return { isServerPage: false, isSetupPage: norm(u.pathname) === norm(setupPagePathname) };
   }
   return { isServerPage: Boolean(pinnedOrigin) && u.origin === pinnedOrigin, isSetupPage: false };
 }

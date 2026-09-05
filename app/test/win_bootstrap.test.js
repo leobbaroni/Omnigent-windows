@@ -85,12 +85,29 @@ describe("win bootstrap: steps", () => {
     assert.equal(byId["wsl-distro"].done, false);
     assert.equal(byId["wsl-omnigent"].blockedBy, "wsl-distro");
     assert.match(byId["wsl-omnigent"].command, /^wsl -d Ubuntu -- bash -lc "curl -fsSL https:\/\/omnigent\.ai\/install\.sh \| sh"$/);
-    const withDistro = fakeExec({ "node --version": "v22.16.0", "wsl.exe -l -q": Buffer.from("Ubuntu\r\ndocker-desktop\r\n", "utf16le") });
-    const s2 = boot.status({ installed: true, wsl: true, version: "omnigent 0.12.0" }, { exec: withDistro, platform: "win32" });
+    const withDistro = fakeExec({
+      "node --version": "v22.16.0",
+      "wsl.exe -l -q": Buffer.from("Ubuntu\r\ndocker-desktop\r\n", "utf16le"),
+      "wsl.exe -d Ubuntu --shell-type login -- omnigent --version": Buffer.from("omnigent 0.12.0 (built x)\n"),
+      "wsl.exe -d Ubuntu --shell-type login -- claude auth status": Buffer.from('{\n  "loggedIn": false,\n  "authMethod": null\n}\n'),
+    });
+    const s2 = boot.status({ installed: false }, { exec: withDistro, platform: "win32" });
     const by2 = Object.fromEntries(s2.wslSteps.map((x) => [x.id, x]));
     assert.equal(by2["wsl-distro"].done, true);
     assert.equal(by2["wsl-omnigent"].done, true);
     assert.equal(by2["wsl-omnigent"].blockedBy, null);
+    assert.match(by2["wsl-omnigent"].note, /0\.12\.0/);
+    assert.equal(by2["wsl-claude-login"].done, false);
+    assert.equal(by2["wsl-claude-login"].blockedBy, null);
+    assert.match(by2["wsl-claude-login"].note, /not signed in/);
+    assert.equal(by2["wsl-claude-login"].command, "wsl -d Ubuntu --shell-type login -- claude");
+  });
+
+  it("wsl probes tolerate missing CLIs and parse auth state", () => {
+    const exec = fakeExec({ "wsl.exe -d Ubuntu --shell-type login -- claude auth status": Buffer.from('{"loggedIn": true}') });
+    assert.equal(boot.wslClaudeAuth(exec, "Ubuntu"), true);
+    assert.equal(boot.wslOmnigentVersion(exec, "Ubuntu"), null);
+    assert.equal(boot.wslClaudeAuth(fakeExec({}), "Ubuntu"), null);
   });
 
   it("marks steps done once uv and the CLI are present", () => {

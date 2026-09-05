@@ -38,6 +38,10 @@ const info = await app.evaluate(({ app: a }) => ({ packaged: a.isPackaged, versi
 stage(`packaged=${info.packaged} version=${info.version} name=${info.name}\n  exe=${info.exe}`);
 const text = await page.evaluate(() => document.body.innerText.slice(0, 300));
 stage(`setup text: ${JSON.stringify(text)}`);
+const cli = await page.evaluate(() => window.omnigentSetup.getCliStatus()).catch((e) => `getCliStatus failed: ${e.message}`);
+stage(`cli status: ${JSON.stringify(cli)}`);
+const boot = await page.evaluate(() => window.omnigentSetup.winBootstrapStatus()).catch((e) => `bootstrap failed: ${e.message}`);
+stage(`bootstrap prereqs: ${JSON.stringify(boot && boot.prereqs)}`);
 await page.screenshot({ path: out });
 await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("quit_app")?.click());
 await new Promise((r) => setTimeout(r, 4000));

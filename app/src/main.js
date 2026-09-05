@@ -2408,10 +2408,24 @@ function isSetupPageSender(event) {
       // Malformed dev URL — fall through to the file:// check.
     }
   }
+  // [win] Compare percent-decoded and case-folded: Node's pathToFileURL
+  // encodes `~` as %7E while Chromium's frame URL keeps it, and the portable
+  // build runs from a temp dir under a short 8.3 profile name (TUGAPL~1) —
+  // without this every setup-page IPC was rejected there ("CLI not found").
+  const samePath = (a, b) => {
+    const norm = (p) => {
+      try {
+        return decodeURIComponent(p).toLowerCase();
+      } catch {
+        return String(p).toLowerCase();
+      }
+    };
+    return norm(a) === norm(b);
+  };
   return (
     url.protocol === "file:" &&
-    (url.pathname === SETUP_PAGE_URL.pathname ||
-      url.pathname === SERVER_SELECTOR_V2_PAGE_URL.pathname)
+    (samePath(url.pathname, SETUP_PAGE_URL.pathname) ||
+      samePath(url.pathname, SERVER_SELECTOR_V2_PAGE_URL.pathname))
   );
 }
 

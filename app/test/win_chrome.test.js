@@ -22,6 +22,14 @@ describe("win chrome", () => {
     assert.deepEqual(chrome.classify("file:///C:/app/setup/index.html?error=x", null, setupPath), { isServerPage: false, isSetupPage: true });
     assert.deepEqual(chrome.classify("https://idp.example.com/login", "http://127.0.0.1:6767", setupPath), { isServerPage: false, isSetupPage: false });
     assert.deepEqual(chrome.classify("not a url", null, setupPath), { isServerPage: false, isSetupPage: false });
+    // Portable build: temp dir under a short 8.3 profile name; Node encodes `~`.
+    assert.equal(chrome.classify("file:///C:/Users/TUGAPL~1/Temp/x/app.asar/setup/index.html", null, "/C:/Users/TUGAPL%7E1/Temp/x/app.asar/setup/index.html").isSetupPage, true);
+  });
+
+  it("settings sender gate tolerates %7E vs ~ and case", () => {
+    const { samePath } = require("../src/win/settings_window");
+    assert.equal(samePath("/C:/Users/TUGAPL~1/a/settings-win/index.html", "/C:/Users/TUGAPL%7E1/A/settings-win/index.html"), true);
+    assert.equal(samePath("/C:/a/x.html", "/C:/a/y.html"), false);
   });
 
   it("applies the matching stylesheet and never throws", async () => {

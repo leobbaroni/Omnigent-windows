@@ -22,6 +22,26 @@ const PRELOAD = path.join(__dirname, "settings_preload.js");
 const BOOL_KEYS = ["win_close_to_tray", "win_start_with_windows", "win_notifications_enabled", "win_auto_start_local"];
 
 /**
+ * Compare two file:// pathnames the way Windows does: percent-decoded (Node's
+ * pathToFileURL encodes `~` as %7E while Chromium keeps it — the portable
+ * build runs from a temp dir under a short 8.3 profile name like TUGAPL~1)
+ * and case-insensitively.
+ *
+ * @param {string} a
+ * @param {string} b
+ */
+function samePath(a, b) {
+  const norm = (p) => {
+    try {
+      return decodeURIComponent(p).toLowerCase();
+    } catch {
+      return String(p).toLowerCase();
+    }
+  };
+  return norm(a) === norm(b);
+}
+
+/**
  * @param {object} deps
  * @param {typeof import("electron").BrowserWindow} deps.BrowserWindow
  * @param {import("electron").IpcMain} deps.ipcMain
@@ -47,7 +67,7 @@ function createSettingsWindow(deps) {
   function isSettingsSender(event) {
     try {
       const url = new URL(event.senderFrame?.url ?? "");
-      return url.protocol === "file:" && url.pathname === pathToFileURL(PAGE).pathname;
+      return url.protocol === "file:" && samePath(url.pathname, pathToFileURL(PAGE).pathname);
     } catch {
       return false;
     }
@@ -202,4 +222,4 @@ function createSettingsWindow(deps) {
   return { open, registerIpc, snapshot, diagnosticsText, applyPatch, isSettingsSender, PAGE };
 }
 
-module.exports = { createSettingsWindow, BOOL_KEYS };
+module.exports = { createSettingsWindow, BOOL_KEYS, samePath };
