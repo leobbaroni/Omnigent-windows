@@ -9,7 +9,7 @@ memory; each item names its source.
 
 | Item | Value | Source |
 |---|---|---|
-| Repository | https://github.com/omnigent-ai/omnigent | clone at `../omnigent-upstream` |
+| Repository | https://github.com/omnigent-ai/omnigent | cloned on demand for `scripts/sync-upstream.mjs` (not kept on disk) |
 | Commit audited | `5d323ad` (branch `main`, 2026-09-05) | `git log` |
 | Package version at that commit | `0.13.0.dev0` | `pyproject.toml` `[project].version`, `omnigent/version.py` |
 | Latest published release | `0.12.0` (PyPI, 2026-09-01) | pypi.org/project/omnigent |
