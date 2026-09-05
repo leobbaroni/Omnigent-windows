@@ -7,3 +7,7 @@ packages:
 allowBuilds:
   electron: true
   electron-winstaller: true
+
+# `pnpm run` otherwise re-runs `pnpm install` through a `pnpm` shim that only
+# exists via corepack (`corepack pnpm …`), which fails on PATH-less shells/CI.
+verifyDepsBeforeRun: false

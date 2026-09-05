@@ -52,6 +52,18 @@ first run: choose *More info → Run anyway*.
    does a PowerShell window open and run it. Nothing is ever installed silently.
 3. After installing, click **Re-detect**, then **Start locally**.
 
+## Native Windows vs WSL
+
+| | Native Windows Omnigent | Omnigent in WSL (recommended) |
+|---|---|---|
+| Server, web UI, sessions, automations, inbox | ✅ | ✅ |
+| Custom SDK agents (`claude-sdk`, `codex`, `cursor`, `copilot`) | ✅ | ✅ |
+| Claude Code / Codex harnesses (slash commands, skills, plugins, question tool) | ❌ Omnigent refuses terminal harnesses on Windows | ✅ |
+| Terminal panes, sandboxing | ❌ | ✅ |
+
+The app's setup panel and this table say the same thing on purpose: nothing is
+hidden; pick the mode that fits.
+
 ## Local server
 
 **Start locally** runs `omnigent server --background` through the CLI, streams
@@ -65,22 +77,28 @@ share it.
 - Tray ▸ *Start / Stop / Restart local server*, *Change Server…*, status line.
 - If a server the app started stops responding, a notification offers Restart.
 
-## WSL setup
+## WSL setup (recommended)
 
-Native Windows Omnigent cannot run terminal panes or sandbox agents (an Omnigent
-limitation, see `COMPAT.md` §12). To get those, run Omnigent inside WSL:
+A native Windows Omnigent can only run custom SDK agents: the Claude Code,
+Codex and other terminal harnesses that give you slash commands, skills,
+plugins, the question tool and terminal panes need a Linux host, and Omnigent
+refuses them on Windows (`COMPAT.md` §12). Running Omnigent inside WSL gives
+you the full experience, and the app drives it for you:
 
-1. `wsl --install` (Ubuntu by default), then inside the distro:
-   `curl -fsSL https://omnigent.ai/install.sh | sh`.
-2. In **Server ▸ Windows Settings… ▸ Local mode**, choose **WSL distro** and pick
-   the distro.
-3. **Start locally** now runs `wsl.exe -d <distro> -- omnigent server --background`;
-   the server's `http://127.0.0.1:<port>` is reachable from Windows through WSL2's
-   loopback forwarding.
+1. `wsl --install -d Ubuntu` (the bootstrap panel offers this step), open
+   Ubuntu once to create your Linux user.
+2. Inside the distro: `curl -fsSL https://omnigent.ai/install.sh | sh` (also
+   offered as a step; it installs uv, tmux and bubblewrap as needed).
+3. Sign in to the harness inside the distro once, e.g. `wsl -d Ubuntu -- claude`
+   then `/login` (Codex: `wsl -d Ubuntu -- codex login`).
+4. **Server ▸ Windows Settings… ▸ Local mode ▸ WSL distro**, pick the distro.
+5. **Start locally** now runs `wsl.exe -d <distro> --shell-type login -- omnigent
+   server --background`; the server's `http://127.0.0.1:<port>` is reachable
+   from Windows through WSL2's loopback forwarding, and hosting this machine
+   enrols the distro as the host.
 
-The WSL mode was implemented and unit-tested, but not exercised against a real
-distro on the development machine (it only had `docker-desktop`); see
-`PARITY.md`.
+Verified on this machine with Ubuntu 26.04 up to host enrolment; the harness
+sign-in is interactive and was left to the user (see `PARITY.md`).
 
 ## Remote servers
 
