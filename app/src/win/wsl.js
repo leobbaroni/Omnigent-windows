@@ -38,10 +38,16 @@ function isWslMode(settings) {
 function wslCliCommand(distro, cliName = "omnigent") {
   const d = String(distro).trim();
   if (!d) throw new TypeError("distro required");
+  // `wsl -- cmd` runs a NON-login shell, whose PATH lacks ~/.local/bin where
+  // Omnigent's installer puts the CLI (it only edits ~/.profile).
+  // `--shell-type login` (WSL 2.x) runs the command through the user's login
+  // shell so PATH is right, with no quoting for Windows argv to mangle.
+  // Verified on WSL 2.7.8: `wsl -d Ubuntu -- omnigent` → "command not found";
+  // `wsl -d Ubuntu --shell-type login -- omnigent --version` → 0.12.0.
   return {
     executable: "wsl.exe",
-    prefixArgs: ["-d", d, "--", cliName],
-    displayName: `wsl -d ${d} -- ${cliName}`,
+    prefixArgs: ["-d", d, "--shell-type", "login", "--", cliName],
+    displayName: `wsl -d ${d} --shell-type login -- ${cliName}`,
   };
 }
 
@@ -79,7 +85,7 @@ async function cliStatus(command, runCli) {
     path: ok ? command.displayName : null,
     version: ok ? version : null,
     source: ok ? "wsl" : null,
-    installCommand: "uv tool install --python 3.12 omnigent   # inside the WSL distro",
+    installCommand: 'wsl -d <distro> -- bash -lc "curl -fsSL https://omnigent.ai/install.sh | sh"',
     wsl: true,
     distro: command.prefixArgs[1],
   };

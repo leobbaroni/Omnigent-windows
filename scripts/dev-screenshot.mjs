@@ -68,6 +68,17 @@ for (let i = 0; i < argv.length; i += 1) {
     await new Promise((r) => setTimeout(r, 800));
   }
 }
+// --wait-url <regex>: after interactions, wait (up to 180 s) for the window
+// to navigate somewhere matching the regex (e.g. a started local server).
+const waitUrl = opt("--wait-url", null);
+if (waitUrl) {
+  const re = new RegExp(waitUrl);
+  const deadline = Date.now() + 180000;
+  while (Date.now() < deadline && !re.test(win.url())) await new Promise((r) => setTimeout(r, 1000));
+  stage(`wait-url: ${re.test(win.url()) ? "matched" : "TIMEOUT"} ${win.url()}`);
+  await win.waitForLoadState("domcontentloaded").catch(() => {});
+  await new Promise((r) => setTimeout(r, 4000));
+}
 if (argv.includes("--full")) {
   // Grow the window so long modals are fully visible.
   await app.evaluate(({ BrowserWindow }) => {

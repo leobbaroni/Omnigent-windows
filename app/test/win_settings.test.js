@@ -83,6 +83,10 @@ describe("win integration: Omnigent updates", () => {
     assert.equal(cliCommandString("C:\\Users\\me\\.local\\bin\\omnigent.exe", ["upgrade"]), "& C:\\Users\\me\\.local\\bin\\omnigent.exe upgrade");
     assert.equal(cliCommandString("C:\\Program Files\\o.exe", ["upgrade"]), "& 'C:\\Program Files\\o.exe' upgrade");
     assert.equal(cliCommandString({ executable: "wsl.exe", prefixArgs: ["-d", "Ubuntu", "--", "omnigent"] }, ["upgrade", "--check"]), "wsl.exe -d Ubuntu -- omnigent upgrade --check");
+    assert.equal(
+      cliCommandString({ executable: "wsl.exe", prefixArgs: ["-d", "Ubuntu", "--", "bash", "-lc", 'exec omnigent "$@"', "omnigent"] }, ["upgrade"]),
+      `wsl.exe -d Ubuntu -- bash -lc 'exec omnigent "$@"' omnigent upgrade`,
+    );
   });
 
   function integ({ code, response = 0 }) {

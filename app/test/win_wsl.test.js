@@ -10,8 +10,8 @@ describe("win wsl", () => {
     const cmd = wsl.wslCliCommand("Ubuntu");
     const parts = cliCommandParts(cmd);
     assert.equal(parts.executable, "wsl.exe");
-    assert.deepEqual(parts.prefixArgs, ["-d", "Ubuntu", "--", "omnigent"]);
-    assert.equal(parts.displayName, "wsl -d Ubuntu -- omnigent");
+    assert.deepEqual(parts.prefixArgs, ["-d", "Ubuntu", "--shell-type", "login", "--", "omnigent"]);
+    assert.equal(parts.displayName, "wsl -d Ubuntu --shell-type login -- omnigent");
     assert.throws(() => wsl.wslCliCommand("  "), TypeError);
   });
 
@@ -37,6 +37,7 @@ describe("win wsl", () => {
     assert.equal(ok.version, "omnigent 0.12.0");
     assert.equal(ok.source, "wsl");
     assert.equal(ok.distro, "Ubuntu");
+    assert.equal(cmd.prefixArgs[1], "Ubuntu");
     const missing = await wsl.cliStatus(cmd, async () => ({ code: 127, stdout: "", stderr: "omnigent: command not found" }));
     assert.equal(missing.installed, false);
   });
