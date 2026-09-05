@@ -171,6 +171,24 @@ for (let i = 0; i < 60; i += 1) {
     stage(`error text seen: ${state.text.match(/.{0,80}(error|failed|isn't configured|needs auth).{0,120}/i)?.[0]}`);
   }
 }
+// 3. In-session slash menu: focus the session composer, type "/", capture the menu.
+try {
+  const composer = page.getByPlaceholder(/Send a message/i).first();
+  await composer.click({ timeout: 5000 });
+  await page.keyboard.type("/");
+  await new Promise((r) => setTimeout(r, 1500));
+  const menu = await page.evaluate(() => {
+    const items = [...document.querySelectorAll('[role="option"], [role="menuitem"], [cmdk-item], [data-slot="command-item"], [data-testid*="slash"]')];
+    return items.slice(0, 25).map((e) => e.textContent.trim().replace(/\s+/g, " ").slice(0, 70));
+  });
+  stage(`in-session slash menu (${menu.length}): ${JSON.stringify(menu)}`);
+  await shot(page, "session-slash-in-session.png");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Backspace");
+} catch (e) {
+  stage(`in-session slash probe failed: ${String(e.message).split(/\r?\n/)[0]}`);
+}
 const finalText = await page.evaluate(() => document.body.innerText.slice(0, 3000)).catch(() => "");
 await shot(page, "session-final.png");
 stage(`questionSeen=${questionSeen}\n--- page text ---\n${finalText}`);
