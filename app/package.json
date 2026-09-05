@@ -70,7 +70,7 @@
     ],
     "extraResources": [
       {
-        "from": "platform-assets",
+        "from": "../platform-assets",
         "to": "platform-assets",
         "filter": [
           "**/*"

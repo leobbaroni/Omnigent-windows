@@ -31,7 +31,7 @@
     "test/omnigent_cli.test.js"
   ],
   "extras": [
-    { "from": "web/platform-assets", "to": "app/platform-assets" }
+    { "from": "web/platform-assets", "to": "platform-assets" }
   ],
   "exclude": [
     "node_modules/",

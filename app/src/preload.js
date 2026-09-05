@@ -477,6 +477,12 @@ contextBridge.exposeInMainWorld("omnigentSetup", {
    * caller then connects to `url` via setServerUrl.
    */
   startLocalServer: () => ipcRenderer.invoke("omnigent:start-local-server"),
+  // [win] Windows bootstrap (setup page only). Resolves null off Windows.
+  // Status is detection only; `run` always goes through a native confirm
+  // dialog in the main process and opens a visible PowerShell window.
+  winBootstrapStatus: () => ipcRenderer.invoke("omnigent:win-bootstrap-status"),
+  winBootstrapRun: (stepId) => ipcRenderer.invoke("omnigent:win-bootstrap-run", String(stepId)),
+  winOpenDocs: (url) => ipcRenderer.invoke("omnigent:win-open-docs", String(url)),
   /**
    * Subscribe to the local server's startup log lines (streamed while it boots
    * during startLocalServer). Returns an unsubscribe function. Absent on older

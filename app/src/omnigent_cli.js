@@ -24,6 +24,8 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const url = require("./url");
+// [win] Windows candidate paths, UTF-8 spawn env, windowsHide, taskkill.
+const win = require("./win/cli_windows");
 
 /** Default timeout for the short status commands. */
 const DEFAULT_TIMEOUT_MS = 10000;
@@ -32,8 +34,11 @@ const DEFAULT_TIMEOUT_MS = 10000;
  * One-liner shown on the setup page when the CLI is missing. Mirrors the
  * install instructions in the repo root README.
  */
+// [win] The POSIX bootstrap script cannot run on Windows; README says to use uv.
 const INSTALL_COMMAND =
-  "curl -fsSL https://raw.githubusercontent.com/omnigent-ai/omnigent/main/scripts/install_oss.sh | sh";
+  process.platform === "win32"
+    ? win.INSTALL_COMMAND_WINDOWS
+    : "curl -fsSL https://raw.githubusercontent.com/omnigent-ai/omnigent/main/scripts/install_oss.sh | sh";
 
 /**
  * Strip a trailing slash so URL comparisons survive the difference between
@@ -276,6 +281,8 @@ const CLI_NAMES = ["omnigent", "omni"];
  * @returns {string[]}
  */
 function candidatePaths() {
+  // [win] uv's tool bin dir + %USERPROFILE%\.local\bin, with .exe names.
+  if (process.platform === "win32") return win.candidatePaths({ uvBinDir: win.uvToolBinDir() });
   const home = os.homedir();
   const dirs = [
     path.join(home, ".local", "bin"),
@@ -429,7 +436,8 @@ function runCli(command, args, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     execFile(
       executable,
       [...prefixArgs, ...args],
-      { timeout: timeoutMs, encoding: "utf8" },
+      // [win] hide the console window and force UTF-8 Python I/O on Windows.
+      win.spawnOptions({ timeout: timeoutMs, encoding: "utf8" }),
       (err, stdout, stderr) => {
         // execFile sets err.code to the numeric exit code on a normal non-zero
         // exit, or a string errno (e.g. "ENOENT") when the spawn itself failed.

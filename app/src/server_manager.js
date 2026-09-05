@@ -17,6 +17,8 @@
 const { spawn } = require("child_process");
 
 const cli = require("./omnigent_cli");
+// [win] windowsHide/UTF-8 spawn options and process-tree kill on Windows.
+const win = require("./win/cli_windows");
 
 /** Max seconds to wait for `host` to print its connected marker before giving up. */
 const CONNECT_TIMEOUT_MS = 30000;
@@ -141,9 +143,10 @@ function spawnHostChild(cliCommand, serverUrl) {
       child = spawn(
         executable,
         [...prefixArgs, "host", "--server", serverUrl, "--non-interactive"],
-        {
+        // [win] no console window; UTF-8 so "✓ Connected" survives.
+        win.spawnOptions({
           stdio: ["ignore", "pipe", "pipe"],
-        },
+        }),
       );
     } catch (err) {
       resolve({ ok: false, child: null, holder, error: err.message });
@@ -379,6 +382,15 @@ function stopChild(child) {
       clearTimeout(t);
       resolve();
     });
+    // [win] Windows has no SIGTERM: child.kill() is TerminateProcess on the
+    // host daemon alone, orphaning the runners it spawned. taskkill /T takes
+    // the whole tree the desktop owns; the SIGKILL timer above still backstops.
+    if (win.IS_WIN && child.pid) {
+      win.killTree(child.pid).then((ok) => {
+        if (!ok && child.exitCode === null) child.kill();
+      });
+      return;
+    }
     child.kill("SIGTERM");
   });
 }

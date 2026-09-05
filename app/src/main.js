@@ -64,6 +64,9 @@ const {
 } = require("./managed_preferences");
 const arca = require("./arca");
 const isaac = require("./isaac");
+// [win] Windows-owned modules (no-ops off Windows).
+const winBootstrap = require("./win/bootstrap");
+const winCompat = require("./win/compat");
 const { createArcaConnectFlow } = require("./arca_connect_window");
 const { registerSessionExpiryReload } = require("./session-expiry");
 const { decideWindowOpen, stripCrossOriginOpenerHeaders, WEB_SCHEMES } = require("./popupPolicy");
@@ -2860,10 +2863,81 @@ function registerIpc() {
     if (!isSetupPageSender(event)) {
       throw new Error("get-cli-status is only available to the setup page");
     }
-    return {
+    const status = {
       ...(await omnigentCli.getCliStatus(loadSettings().omnigent_path)),
       customizationDisabled: databricksInternalFeaturesEnabled(),
     };
+    // [win] One-time (per version) compatibility notice; never blocks the page.
+    if (process.platform === "win32" && status.installed) {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? activeWindow();
+      void winCompat.maybeWarn({
+        versionText: status.version,
+        loadSettings,
+        saveSettings,
+        dialog,
+        win: win ?? undefined,
+        log: (m) => console.warn(m),
+      });
+    }
+    return status;
+  });
+
+  // [win] Setup page → Windows bootstrap status: prerequisite detection, the
+  // exact install commands, known native-Windows limitations. Detection only.
+  ipcMain.handle("omnigent:win-bootstrap-status", async (event) => {
+    if (!isSetupPageSender(event)) {
+      throw new Error("win-bootstrap-status is only available to the setup page");
+    }
+    if (process.platform !== "win32") return null;
+    const cli = await omnigentCli.getCliStatus(loadSettings().omnigent_path);
+    return winBootstrap.status(cli);
+  });
+
+  // [win] Setup page → run one bootstrap step. The main process shows a native
+  // confirmation quoting the exact command; only on "Run" does it open a
+  // visible PowerShell window that runs it. Nothing is ever installed silently.
+  ipcMain.handle("omnigent:win-bootstrap-run", async (event, stepId) => {
+    if (!isSetupPageSender(event)) {
+      throw new Error("win-bootstrap-run is only available to the setup page");
+    }
+    if (process.platform !== "win32") return { ok: false, error: "Windows only" };
+    const cli = await omnigentCli.getCliStatus(loadSettings().omnigent_path);
+    const step = winBootstrap.status(cli).steps.find((s) => s.id === String(stepId));
+    if (!step) return { ok: false, error: "Unknown setup step." };
+    if (step.blockedBy) return { ok: false, error: `Install ${step.blockedBy} first.` };
+    const win = BrowserWindow.fromWebContents(event.sender) ?? activeWindow();
+    const { response } = await dialog.showMessageBox(win ?? undefined, {
+      type: "question",
+      buttons: ["Run in PowerShell", "Cancel"],
+      defaultId: 0,
+      cancelId: 1,
+      title: "Run this command?",
+      message: step.title,
+      detail:
+        "Omnigent will open a PowerShell window and run exactly this command:\n\n" +
+        `${step.command}\n\n` +
+        "Nothing is installed without this confirmation. You can also copy the command and run it yourself.",
+    });
+    if (response !== 0) return { ok: false, cancelled: true };
+    try {
+      const { pid } = winBootstrap.runInConsole(step.command);
+      console.log(`[omnigent][win] bootstrap step "${step.id}" started in a console window (pid ${pid})`);
+      return { ok: true, pid };
+    } catch (err) {
+      console.warn(`[omnigent][win] bootstrap step "${step.id}" failed to start:`, err);
+      return { ok: false, error: String(err && err.message ? err.message : err) };
+    }
+  });
+
+  // [win] Setup page → open a documentation link in the system browser
+  // (https, allow-listed hosts only).
+  ipcMain.handle("omnigent:win-open-docs", async (event, target) => {
+    if (!isSetupPageSender(event)) {
+      throw new Error("win-open-docs is only available to the setup page");
+    }
+    if (!winBootstrap.isAllowedDocsUrl(target)) return false;
+    await shell.openExternal(String(target));
+    return true;
   });
 
   // Setup page → set an explicit path to the `omnigent` binary. Persisted only
