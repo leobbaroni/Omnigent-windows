@@ -168,7 +168,8 @@ pnpm start                      # electron .
 Useful scripts (repo root): `scripts/dev-screenshot.mjs`, `dev-tray-check.mjs`,
 `dev-settings-shot.mjs`, `dev-spa-check.mjs`, `dev-session-check.mjs`
 (real session incl. AskUserQuestion), `dev-session-slash.mjs`,
-`dev-packaged-smoke.mjs`, `dev-portable-probe.mjs`. Real-install e2e:
+`dev-packaged-smoke.mjs`, `dev-portable-probe.mjs`, `dev-update-probe.mjs`
+(packaged build → Settings ▸ Updates ▸ check; result in the log). Real-install e2e:
 `node --test app/e2e/win_smoke.e2e.js` (skips without Omnigent).
 
 Layout: `app/` = vendored upstream shell + Windows code in `app/src/win/`
