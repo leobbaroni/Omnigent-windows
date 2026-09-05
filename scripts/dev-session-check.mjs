@@ -60,7 +60,7 @@ const wsDir = process.env.OMNIGENT_E2E_WORKSPACE || path.join(os.homedir(), "omn
 fs.mkdirSync(wsDir, { recursive: true });
 await page.click('[data-testid="new-chat-landing-workspace-chip"]');
 await page.waitForSelector('[data-testid="workspace-picker-path-input"]', { timeout: 15000 });
-await page.fill('[data-testid="workspace-picker-path-input"]', wsDir);
+await page.fill('[data-testid="workspace-picker-path-input"]', wsDir.split(path.sep).join("/"));
 await page.keyboard.press("Enter");
 await new Promise((r) => setTimeout(r, 1500));
 await page.click('[data-testid="workspace-picker-select"]').catch(() => {});
@@ -85,8 +85,33 @@ const pickedHarness = await page.evaluate((src) => {
   }
   return null;
 }, wantHarness.source);
-stage(`picked harness: ${pickedHarness}`);
-if (!pickedHarness) await page.keyboard.press("Escape");
+let pickedHarness2 = pickedHarness;
+if (!pickedHarness2) {
+  // Open the "More" submenu and retry.
+  await page.evaluate(() => {
+    const more = [...document.querySelectorAll('[role="menuitem"], [role="option"], [cmdk-item]')].find((e) => /^More/.test(e.textContent.trim()));
+    if (more) {
+      more.dispatchEvent(new PointerEvent("pointermove", { bubbles: true }));
+      more.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+      more.click();
+    }
+  });
+  await new Promise((r) => setTimeout(r, 1200));
+  const moreOptions = await page.evaluate(() => [...document.querySelectorAll('[role="option"], [role="menuitem"], [role="menuitemradio"], [cmdk-item]')].map((e) => e.textContent.trim().slice(0, 50)));
+  stage(`more options: ${JSON.stringify(moreOptions)}`);
+  await shot(page, "session-harness-more.png");
+  pickedHarness2 = await page.evaluate((src) => {
+    const re = new RegExp(src, "i");
+    const el = [...document.querySelectorAll('[role="option"], [role="menuitem"], [role="menuitemradio"], [cmdk-item]')].find((e) => re.test(e.textContent));
+    if (el) {
+      el.click();
+      return el.textContent.trim().slice(0, 50);
+    }
+    return null;
+  }, wantHarness.source);
+}
+stage(`picked harness: ${pickedHarness2}`);
+if (!pickedHarness2) await page.keyboard.press("Escape");
 await new Promise((r) => setTimeout(r, 1000));
 
 // 2b. Start a session.

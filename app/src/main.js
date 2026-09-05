@@ -2982,7 +2982,8 @@ function registerIpc() {
     }
     if (process.platform !== "win32") return { ok: false, error: "Windows only" };
     const cli = await omnigentCli.getCliStatus(loadSettings().omnigent_path);
-    const step = winBootstrap.status(cli).steps.find((s) => s.id === String(stepId));
+    const all = winBootstrap.status(cli);
+    const step = [...all.steps, ...(all.wslSteps || [])].find((s) => s.id === String(stepId));
     if (!step) return { ok: false, error: "Unknown setup step." };
     if (step.blockedBy) return { ok: false, error: `Install ${step.blockedBy} first.` };
     const win = BrowserWindow.fromWebContents(event.sender) ?? activeWindow();
@@ -3162,7 +3163,9 @@ function registerIpc() {
     const picked = result.filePaths[0];
     const settings = loadSettings();
     const useWsl = winWsl.isWslMode(settings) && omnigentCli.isLoopbackServer(senderServerUrl(event) ?? "");
-    return { path: useWsl ? winWsl.toWslPath(picked) : picked, wsl: useWsl };
+    // The SPA's path field splits on "/" (WorkspacePicker/WorkspacePathField),
+    // and Windows accepts forward slashes, so hand it C:/Users/… form.
+    return { path: useWsl ? winWsl.toWslPath(picked) : picked.replace(/\\/g, "/"), wsl: useWsl };
   });
 
   // SPA → start / stop / restart this machine's host daemon for the window's

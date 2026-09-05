@@ -166,6 +166,14 @@
         text: "Omnigent is not installed on this PC. Each step below shows the exact command. “Run in PowerShell…” first asks you to confirm, then opens a PowerShell window you can watch. Nothing is installed without your confirmation.",
       }),
       el("p", { text: `Detected: ${detected}` }),
+      ...(status.wslRecommendation
+        ? [
+            el("h3", { text: "Recommended: run Omnigent in WSL" }),
+            el("p", { text: status.wslRecommendation }),
+            ...(status.wslSteps || []).map(stepCard),
+            el("h3", { text: "Alternative: native Windows (custom SDK agents only)" }),
+          ]
+        : []),
       ...status.steps.map(stepCard),
       el("p", { text: status.wslHint }),
       el(

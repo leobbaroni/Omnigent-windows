@@ -78,6 +78,21 @@ describe("win bootstrap: steps", () => {
     assert.match(s.wslHint, /No WSL distro/);
   });
 
+  it("recommends WSL with its own steps, blocked until a distro exists", () => {
+    const s = boot.status({ installed: false }, { exec, platform: "win32" });
+    assert.match(s.wslRecommendation, /Recommended on Windows/);
+    const byId = Object.fromEntries(s.wslSteps.map((x) => [x.id, x]));
+    assert.equal(byId["wsl-distro"].done, false);
+    assert.equal(byId["wsl-omnigent"].blockedBy, "wsl-distro");
+    assert.match(byId["wsl-omnigent"].command, /^wsl -d Ubuntu -- bash -lc "curl -fsSL https:\/\/omnigent\.ai\/install\.sh \| sh"$/);
+    const withDistro = fakeExec({ "node --version": "v22.16.0", "wsl.exe -l -q": Buffer.from("Ubuntu\r\ndocker-desktop\r\n", "utf16le") });
+    const s2 = boot.status({ installed: true, wsl: true, version: "omnigent 0.12.0" }, { exec: withDistro, platform: "win32" });
+    const by2 = Object.fromEntries(s2.wslSteps.map((x) => [x.id, x]));
+    assert.equal(by2["wsl-distro"].done, true);
+    assert.equal(by2["wsl-omnigent"].done, true);
+    assert.equal(by2["wsl-omnigent"].blockedBy, null);
+  });
+
   it("marks steps done once uv and the CLI are present", () => {
     const withUv = fakeExec({ "uv --version": "uv 0.12.7", "node --version": "v22.16.0" });
     const s = boot.status({ installed: true, version: "omnigent 0.12.0" }, { exec: withUv, platform: "win32" });
